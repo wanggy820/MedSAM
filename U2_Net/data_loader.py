@@ -218,6 +218,8 @@ class ToTensorLab(object):
 		tmpImg = tmpImg.transpose((2, 0, 1))
 		tmpLbl = label.transpose((2, 0, 1))
 
+		tmpImg = np.ascontiguousarray(tmpImg)
+		tmpLbl = np.ascontiguousarray(tmpLbl)
 		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'label': torch.from_numpy(tmpLbl)}
 
 class SalObjDataset(Dataset):

@@ -19,7 +19,7 @@ def normPRED(d):
     mi = torch.min(d)
 
     dn = (d-mi)/(ma-mi)
-    dn = torch.where(dn > (ma - mi) / 2.0, (ma - mi), 0)
+    # dn = torch.where(dn > (ma - mi) / 2.0, (ma - mi), 0)
     return dn
 
 def save_output(image_name, pred, d_dir):
@@ -39,12 +39,11 @@ def save_output(image_name, pred, d_dir):
     im.save(image_path)
     return image_path
 
-# dice:0.9131831226826423, iou:0.8402364204687426  A-908.png
-# 0.8855221741986402 IOU: 0.7945623983923332
+
 def dice_iou(pred, target, smooth=1e-5):
     # 读取并转换图像为二值化形式
     image1 = cv2.imread(pred, 0)
-    c = image1.sum().item()
+
     image2 = cv2.imread(target, 0)
     _, image1_binary = cv2.threshold(image1, 127, 255, cv2.THRESH_BINARY)
     _, image2_binary = cv2.threshold(image2, 127, 255, cv2.THRESH_BINARY)

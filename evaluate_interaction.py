@@ -47,7 +47,7 @@ def normPRED(d):
     mi = torch.min(d)
 
     dn = (d-mi)/(ma-mi)
-    dn = torch.where(dn > (ma - mi) / 2.0, (ma - mi), 0)
+    # dn = torch.where(dn > (ma - mi) / 2.0, (ma - mi), 0)
     return dn
 
 def save_output(image_name, pred, d_dir):

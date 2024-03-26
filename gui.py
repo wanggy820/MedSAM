@@ -165,7 +165,7 @@ def normPRED(d):
     mi = torch.min(d)
 
     dn = (d-mi)/(ma-mi)
-    # dn = torch.where(dn > (ma-mi)/2.0, (ma-mi), 0)
+    dn = torch.where(dn > (ma-mi)/2.0, 1.0, 0)
     return dn
 
 def find_u2net_bboxes(input, image_name):
@@ -183,6 +183,7 @@ def find_u2net_bboxes(input, image_name):
 
     pred = np.array(imo)
 
+    imo.save("33.png")
     masks = np.expand_dims(pred, axis=0)
     boxes = []
     maxw = maxh = 0
@@ -208,7 +209,7 @@ def find_u2net_bboxes(input, image_name):
     return np.array(boxes)
 
 def get_u2net_bbox(img_path):
-    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_ICBI.pth"
+    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_BUSI.pth"
     img_name_list = [img_path]
     test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
                                         lbl_name_list = [],
