@@ -17,7 +17,7 @@ from data_loader import SalObjDataset
 
 from model import U2NET
 from model import U2NETP
-
+import logging
 
 # ------- 1. define loss function --------
 bce_loss = nn.BCELoss(reduction='mean')
@@ -58,11 +58,14 @@ def iou_function(a, b, epsilon=1e-5):
 
 
 def main():
+    datasets = "MICCAI"
     model_name = 'u2net'  # 'u2netp'
     # ------- 2. set the directory of training dataset --------
     model_dir = os.path.join(os.getcwd(), 'saved_models', model_name + os.sep)
 
-    epoch_num = 50
+    logging.basicConfig(filename=model_name + '_train_' + datasets + '.log', encoding='utf-8', level=logging.DEBUG)
+
+    epoch_num = 1000
     batch_size_train = 10
 
     tra_img_name_list = glob.glob("../datasets/MICCAI2023/train/image/*")
@@ -75,7 +78,7 @@ def main():
             RescaleT(320),
             RandomCrop(288),
             ToTensorLab(flag=0)]))
-    train_dataloader = DataLoader(salobj_dataset, batch_size=batch_size_train, shuffle=True, num_workers=1)
+    train_dataloader = DataLoader(salobj_dataset, batch_size=batch_size_train, shuffle=False, num_workers=1)
 
     train_num = len(train_dataloader)
     # ------- 3. define model --------
@@ -85,7 +88,10 @@ def main():
     elif (model_name == 'u2netp'):
         net = U2NETP(3, 1)
 
-    net.load_state_dict(torch.load(model_dir + "u2net_bce_best_MICCAI.pth", map_location=torch.device('cpu')))
+    model_file = model_dir + "u2net_bce_best_" + datasets + ".pth"
+    if os.path.exists(model_file):
+        net.load_state_dict(torch.load(model_file))
+
     if torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
@@ -102,7 +108,7 @@ def main():
 
     best_loss = 0
     itr = 0
-    for epoch in range(0, epoch_num):
+    for epoch in range(42, epoch_num):
         net.train()
         running_loss = 0.0
         running_tar_loss = 0.0
@@ -143,9 +149,12 @@ def main():
 
         if best_loss == 0 or best_loss > running_tar_loss:
             best_loss = running_tar_loss
-            torch.save(net.state_dict(), model_dir + model_name + "_bce_best_MICCAI.pth")
+            torch.save(net.state_dict(), model_file)
 
         print("[epoch: %3d/%3d] train loss: %3f, tar: %3f， IOU:%3f" % (
+            epoch + 1, epoch_num, running_loss / itr,
+            running_tar_loss / itr, total_iou))
+        logging.info("[epoch: %3d/%3d] train loss: %3f, tar: %3f， IOU:%3f" % (
             epoch + 1, epoch_num, running_loss / itr,
             running_tar_loss / itr, total_iou))
         itr = 0

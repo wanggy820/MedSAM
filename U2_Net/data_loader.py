@@ -102,6 +102,8 @@ class RandomCrop(object):
 
 class ToTensor(object):
 	"""Convert ndarrays in sample to Tensors."""
+	def __init__(self, num_class=1):
+		self.num_class = num_class
 
 	def __call__(self, sample):
 
@@ -111,10 +113,11 @@ class ToTensor(object):
 		tmpLbl = np.zeros(label.shape)
 
 		image = image/np.max(image)
-		if(np.max(label)<1e-6):
-			label = label
-		else:
-			label = label/np.max(label)
+		if self.num_class == 1:
+			if (np.max(label) < 1e-6):
+				label = label
+			else:
+				label = label / np.max(label)
 
 		if image.shape[2]==1:
 			tmpImg[:,:,0] = (image[:,:,0]-0.485)/0.229
@@ -135,8 +138,9 @@ class ToTensor(object):
 
 class ToTensorLab(object):
 	"""Convert ndarrays in sample to Tensors."""
-	def __init__(self,flag=0):
+	def __init__(self,flag=0, num_class=1):
 		self.flag = flag
+		self.num_class = num_class
 
 	def __call__(self, sample):
 
@@ -144,10 +148,11 @@ class ToTensorLab(object):
 
 		tmpLbl = np.zeros(label.shape)
 
-		if(np.max(label)<1e-6):
-			label = label
-		else:
-			label = label/np.max(label)
+		if self.num_class == 1:
+			if (np.max(label) < 1e-6):
+				label = label
+			else:
+				label = label / np.max(label)
 
 		# change the color space
 		if self.flag == 2: # with rgb and Lab colors

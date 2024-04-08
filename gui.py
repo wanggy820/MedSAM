@@ -209,7 +209,7 @@ def find_u2net_bboxes(input, image_name):
     return np.array(boxes)
 
 def get_u2net_bbox(img_path):
-    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_BUSI.pth"
+    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_Thyroid.pth"
     img_name_list = [img_path]
     test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
                                         lbl_name_list = [],
@@ -604,5 +604,17 @@ Swin-UNetr  训练模型
 **  半监督 -->完全监督
 
 
+
+'''
+
+
+
+'''
+
+训练结果 ， 平均值 
+
+
+牙齿、皮肤癌分割任务效果  最新的论文摘要、结果， 发表的期刊，写成word文档
+Swin-UNetr  训练模型
 
 '''

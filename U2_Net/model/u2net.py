@@ -352,6 +352,7 @@ class U2NET(nn.Module):
         self.side6 = nn.Conv2d(512,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
+        self.out_ch = out_ch
 
     def forward(self,x):
 
@@ -417,8 +418,9 @@ class U2NET(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
 
-        return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
-
+        if self.out_ch == 1:
+            return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
+        return d0, d1, d2, d3, d4, d5, d6
 ### U^2-Net small ###
 class U2NETP(nn.Module):
 
@@ -457,7 +459,7 @@ class U2NETP(nn.Module):
         self.side6 = nn.Conv2d(64,out_ch,3,padding=1)
 
         self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
-
+        self.out_ch = out_ch
     def forward(self,x):
 
         hx = x
@@ -522,4 +524,6 @@ class U2NETP(nn.Module):
 
         d0 = self.outconv(torch.cat((d1,d2,d3,d4,d5,d6),1))
 
-        return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
+        if self.out_ch == 1:
+            return F.sigmoid(d0), F.sigmoid(d1), F.sigmoid(d2), F.sigmoid(d3), F.sigmoid(d4), F.sigmoid(d5), F.sigmoid(d6)
+        return d0, d1, d2, d3, d4, d5, d6

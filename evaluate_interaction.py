@@ -1,3 +1,4 @@
+import argparse
 import os
 import cv2
 import numpy as np
@@ -15,7 +16,7 @@ from U2_Net.model import U2NET # full size version 173.6 MB
 from skimage import transform, io
 from segment_anything import sam_model_registry
 from torch.nn import functional as F
-
+import logging
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -30,8 +31,8 @@ np.random.seed(2023)
 SAM_MODEL_TYPE = "vit_b"
 MedSAM_CKPT_PATH = "work_dir/MedSAM/medsam_vit_b.pth"
 MEDSAM_IMG_INPUT_SIZE = 1024
-prediction_dir = './predict_u2net_results'
-interaction_dir = './interaction_u2net_results'
+prediction_dir = './val/predict_u2net_results'
+interaction_dir = './val/interaction_u2net_results'
 # set up model
 medsam_model = sam_model_registry["vit_b"](checkpoint=MedSAM_CKPT_PATH).to(device)
 medsam_model.eval()
@@ -47,7 +48,7 @@ def normPRED(d):
     mi = torch.min(d)
 
     dn = (d-mi)/(ma-mi)
-    # dn = torch.where(dn > (ma - mi) / 2.0, (ma - mi), 0)
+    dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
     return dn
 
 def save_output(image_name, pred, d_dir):
@@ -56,6 +57,10 @@ def save_output(image_name, pred, d_dir):
     predict_np = predict.cpu().data.numpy()
 
     im = Image.fromarray(predict_np*255).convert('RGB')
+
+    image = io.imread(image_name)
+    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
+
     img_name = image_name.split(os.sep)[-1]
 
     aaa = img_name.split(".")
@@ -64,17 +69,18 @@ def save_output(image_name, pred, d_dir):
     for i in range(1,len(bbb)):
         imidx = imidx + "." + bbb[i]
     image_path = d_dir+'/'+imidx+'.png'
-    im.save(image_path)
+    imo.save(image_path)
     return image_path
 
 def dice_iou(pred, target, smooth=1e-5):
     # 读取并转换图像为二值化形式
     image1 = cv2.imread(pred, 0)
-    c = image1.sum().item()
+
     image2 = cv2.imread(target, 0)
     _, image1_binary = cv2.threshold(image1, 127, 255, cv2.THRESH_BINARY)
     _, image2_binary = cv2.threshold(image2, 127, 255, cv2.THRESH_BINARY)
-
+    if image1_binary.shape != image2_binary.shape:
+        raise ValueError("image1_binary.shape != image2_binary.shape")
     # 计算交集和并集
     intersection = cv2.bitwise_and(image1_binary, image2_binary)
     union = cv2.addWeighted(image1_binary, 0.5, image2_binary, 0.5, 0)
@@ -225,34 +231,31 @@ def interaction_u2net_predict(bboxes, file_path, save_dir):
     io.imsave(image_path, mask_c)
     return image_path
 
+
+def get_argparser():
+    parser = argparse.ArgumentParser()
+
+    # model Options
+    parser.add_argument("--model_name", type=str, default='Thyroid',
+                        help="model_name")
+    return parser
+
 def main():
+    opts = get_argparser().parse_args()
     create_clear_dir(prediction_dir)
     create_clear_dir(interaction_dir)
 
-    model_name = "IBCI"
-    if model_name == "MICCAI":
-        model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_MICCAI.pth'
-        image_dir = './datasets/MICCAI2023/val'
-        img_name_list = glob.glob(image_dir + '/image/*')
-        lbl_name_list = glob.glob(image_dir + '/mask/*')
-    else:
-        model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_ICBI.pth'
-
-        datasets_dir = "./DeepLabV3Plus/datasets/"
-        filePath = datasets_dir + "ISBI2016_ISIC_Part3B_Test_GroundTruth.csv"
-        f = open(filePath, encoding="utf-8")
-        data = pd.read_csv(f)
-        img_name_list = []
-        lbl_name_list = []
-
-        for img, seg in zip(data["img"], data["seg"]):
-            img_name_list.append(datasets_dir + img)
-            lbl_name_list.append(datasets_dir + seg)
-
-
-
+    image_dir = './val'
+    img_name_list = glob.glob(image_dir + '/image/*')
+    img_name_list = sorted(img_name_list)
+    lbl_name_list = glob.glob(image_dir + '/mask/*')
+    lbl_name_list = sorted(lbl_name_list)
     print("Number of images: ", len(img_name_list))
 
+    model_name = opts.model_name
+    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + model_name + '.pth'
+
+    logging.basicConfig(filename="./val/" + model_name + '_val' + '.log', encoding='utf-8', level=logging.DEBUG)
     # --------- 2. dataloader ---------
     #1. dataloader
     test_salobj_dataset = SalObjDataset(img_name_list=img_name_list,
@@ -274,25 +277,47 @@ def main():
     net.eval()
     with torch.no_grad():
         # --------- 4. inference for each image ---------
+        u2net_total_dice = 0
+        u2net_total_iou = 0
+        interaction_total_dice = 0
+        interaction_total_iou = 0
         for i_test, data_test in enumerate(test_salobj_dataloader):
             print("inferencing:", img_name_list[i_test].split(os.sep)[-1])
+            logging.info("inferencing:", img_name_list[i_test].split(os.sep)[-1])
             inputs_test = data_test['image']
 
             inputs_test = inputs_test.type(torch.FloatTensor).to(device)
-            d0, d1, d2, d3, d4, d5, d6 = net(inputs_test)
+            d1, d2, d3, d4, d5, d6, d7 = net(inputs_test)
             # save results to test_results folder
             file_path = img_name_list[i_test]
 
             # u2net 图片保存
             u2net_image_path = save_output(file_path, d1, prediction_dir)
-            dice, iou = dice_iou(u2net_image_path, lbl_name_list[i_test])
+            u2net_dice, u2net_iou = dice_iou(u2net_image_path, lbl_name_list[i_test])
+            u2net_total_dice += u2net_dice
+            u2net_total_iou += u2net_iou
+
 
             bboxes = find_u2net_bboxes(d1, img_name_list[i_test])
             interaction_image_path = interaction_u2net_predict(bboxes, file_path, interaction_dir)
-            dice1, iou1 = dice_iou(interaction_image_path, lbl_name_list[i_test])
+            interaction_dice, interaction_iou = dice_iou(interaction_image_path, lbl_name_list[i_test])
+            interaction_total_dice += interaction_dice
+            interaction_total_iou += interaction_iou
 
-            print("u2net----- dice:{}, iou:{}".format(dice, iou))
-            print("interaction----- dice:{}, iou:{}".format(dice1, iou1))
+            print("u2net       iou:{}, u2net       dice:{}".format(u2net_iou, u2net_dice))
+            print("interaction iou:{}, interaction dice:{}".format(interaction_iou, interaction_dice))
+            print("u2net       average iou:{},u2net       average dice:{}".format(u2net_total_iou / (i_test + 1),
+                                                                                  u2net_total_dice / (i_test + 1)))
+            print("interaction average iou:{},interaction average dice:{}".format(u2net_total_iou / (i_test + 1),
+                                                                             interaction_total_dice / (i_test + 1)))
+            logging.info("u2net       iou:{}, u2net       dice:{}".format(u2net_iou, u2net_dice))
+            logging.info("interaction iou:{}, interaction dice:{}".format(interaction_iou, interaction_dice))
+            logging.info("u2net       average iou:{},u2net       average dice:{}".format(u2net_total_iou / (i_test + 1),
+                                                                                         u2net_total_dice / (
+                                                                                                     i_test + 1)))
+            logging.info("interaction average iou:{},interaction average dice:{}".format(u2net_total_iou / (i_test + 1),
+                                                                                  interaction_total_dice / (i_test + 1)))
+
 
 if __name__ == "__main__":
     main()
