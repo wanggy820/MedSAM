@@ -105,8 +105,12 @@ medsam_model = medsam_model.to(device)
 medsam_model.eval()
 
 img_np = io.imread(args.data_path)
+print(img_np.shape)
 if len(img_np.shape) == 2:
     img_3c = np.repeat(img_np[:, :, None], 3, axis=-1)
+elif img_np.shape[2] == 4:
+    img_np = img_np[:, :, :3]
+    img_3c = img_np
 else:
     img_3c = img_np
 H, W, _ = img_3c.shape

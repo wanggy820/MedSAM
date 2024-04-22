@@ -33,35 +33,13 @@ def normPRED(d):
     return dn
 
 
-def save_output(image_name, pred, d_dir):
-    predict = pred
-    predict = predict.squeeze()
-    predict_np = predict.cpu().data.numpy()
-
-    im = Image.fromarray(predict_np * 255).convert('RGB')
-    img_name = image_name.split(os.sep)[-1]
-    image = io.imread(image_name)
-    imo = im.resize((image.shape[1], image.shape[0]), resample=Image.BILINEAR)
-
-    pb_np = np.array(imo)
-
-    aaa = img_name.split(".")
-    bbb = aaa[0:-1]
-    imidx = bbb[0]
-    for i in range(1, len(bbb)):
-        imidx = imidx + "." + bbb[i]
-
-    imo.save(d_dir + imidx + '.png')
-
-
 def main():
     # --------- 1. get image path and name ---------
     model_name = 'u2net'  # u2netp
 
     num_class = 7
 
-    image_dir = os.path.join(os.getcwd(), 'datasets', 'ISBI', 'ISBI2016_ISIC_Part1_Test_Data')
-    prediction_dir = os.path.join(os.getcwd(), 'val', model_name + '_results_ls' + os.sep)
+    image_dir = os.path.join(os.getcwd(), 'val', 'image')
     model_dir = os.path.join(os.getcwd(), 'U2_Net', 'saved_models', model_name,
                              'u2net_bce_best_ALL.pth')
 
@@ -116,55 +94,59 @@ def main():
         d1 = d1.squeeze(dim=0)  # torch.Size([1, 3, 320, 320]) -> torch.Size([3, 320, 320])
 
         d1 = F.softmax(d1, dim=0)  # [3, 320, 320]
-        # print(d1[0, :, :])
+
 
         predict_np = torch.argmax(d1, dim=0, keepdim=True)
         # print(predict_np.shape)  # [1, 320, 320],3个类别，对应3个通道，获取概率值最高的下标
-
+        predict_np = normPRED(predict_np)
         predict_np = predict_np.cpu().detach().numpy().squeeze()  # 转到cpu设备
 
         predict_np = cv2.resize(predict_np, (image.shape[1], image.shape[0]),
                                 interpolation=cv2.INTER_NEAREST)  # resize和原图一样的大小
 
+
+
         r = predict_np.copy()
         b = predict_np.copy()
         g = predict_np.copy()
-        g4 = predict_np.copy()
-        g5 = predict_np.copy()
-        g6 = predict_np.copy()
-        g7 = predict_np.copy()
 
-        cls = dict([(1, (0, 0, 255)),
-                    (2, (255, 0, 255)),
-                    (3, (0, 255, 0)),
-                    (4, (255, 0, 0)),
-                    (5, (255, 255, 0)),
-                    (6, (255, 255, 100)),
-                    (7, (255, 255, 200)),])
+
+        cls = dict([(1, (0, 0, 255)), #蓝
+                    (2, (255, 0, 255)), #紫
+                    (3, (0, 255, 0)),  # 绿
+                    (4, (255, 0, 0)),    #红色
+                    (5, (255, 255, 0)),  #黄色
+                    (6, (200, 255, 255))]) #纯蓝
         for c in cls:
             r[r == c] = cls[c][0]
             g[g == c] = cls[c][1]
             b[b == c] = cls[c][2]
-            g4[g == c] = cls[c][3]
-            g5[g == c] = cls[c][4]
-            g6[g == c] = cls[c][5]
-            g7[g == c] = cls[c][6]
+
 
         rgb = np.zeros((image.shape[0], image.shape[1], 3))
         # print('类别', np.unique(predict_np))
         rgb[:, :, 0] = r
         rgb[:, :, 1] = g
         rgb[:, :, 2] = b
-        rgb[:, :, 3] = g4
-        rgb[:, :, 4] = g5
-        rgb[:, :, 5] = g6
-        rgb[:, :, 6] = g7
+
         im = Image.fromarray(rgb.astype(np.uint8))
-        im.save('./val' + str(image_name)[:-4] + '.png')
+        im.save('./val/test/' + str(image_name)[:-4] + '.png')
 
         del d1, d2, d3, d4, d5, d6, d7
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    B=31
+    G=71
+    x = 120
+    y = 423
+    X = B ** x % G
+    Y = B ** y % G
+    sx = Y**x % G
+    print(sx)
+    sy = X**y % G
+    print(sy)
+    r = (B**(x*y)) % G
 
+    print(r)

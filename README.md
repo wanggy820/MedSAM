@@ -122,3 +122,13 @@ If you only want to train the mask decoder, please check the tutorial on the [0.
   year={2024}
 }
 ```
+
+| 模型名称 | 代码地址                                                 | 论文   |
+|-------|------------------------------------------------------|------|
+| SAM  | https://github.com/facebookresearch/segment-anything | https://scontent-hkg4-1.xx.fbcdn.net/v/t39.2365-6/10000000_900554171201033_1602411987825904100_n.pdf?_nc_cat=100&ccb=1-7&_nc_sid=3c67a6&_nc_ohc=OmDpjYX2c7AAb6zDL3f&_nc_ht=scontent-hkg4-1.xx&oh=00_AfAb9mHKqMHPpgVILiETJsHihg0nd1PU7MIOw7sEvv3vCQ&oe=6622BAA7 |
+|MedSAM| https://github.com/bowang-lab/MedSAM                 |https://www.nature.com/articles/s41467-024-44824-z|
+|Medical-SAM-Adapter| https://github.com/KidsWithTokens/Medical-SAM-Adapter |https://arxiv.org/abs/2304.12620|
+|nnet| https://github.com/milesial/Pytorch-UNet|https://arxiv.org/pdf/1505.04597v1.pdf|
+|U2net|                                                      |https://arxiv.org/pdf/2005.09007.pdf|
+
+

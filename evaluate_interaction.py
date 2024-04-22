@@ -282,8 +282,9 @@ def main():
         interaction_total_dice = 0
         interaction_total_iou = 0
         for i_test, data_test in enumerate(test_salobj_dataloader):
-            print("inferencing:", img_name_list[i_test].split(os.sep)[-1])
-            logging.info("inferencing:", img_name_list[i_test].split(os.sep)[-1])
+            inferencing = img_name_list[i_test].split(os.sep)[-1]
+            print("inferencing:", inferencing)
+            logging.info("inferencing:{}".format(inferencing))
             inputs_test = data_test['image']
 
             inputs_test = inputs_test.type(torch.FloatTensor).to(device)
@@ -308,14 +309,14 @@ def main():
             print("interaction iou:{}, interaction dice:{}".format(interaction_iou, interaction_dice))
             print("u2net       average iou:{},u2net       average dice:{}".format(u2net_total_iou / (i_test + 1),
                                                                                   u2net_total_dice / (i_test + 1)))
-            print("interaction average iou:{},interaction average dice:{}".format(u2net_total_iou / (i_test + 1),
+            print("interaction average iou:{},interaction average dice:{}".format(interaction_total_iou / (i_test + 1),
                                                                              interaction_total_dice / (i_test + 1)))
             logging.info("u2net       iou:{}, u2net       dice:{}".format(u2net_iou, u2net_dice))
             logging.info("interaction iou:{}, interaction dice:{}".format(interaction_iou, interaction_dice))
             logging.info("u2net       average iou:{},u2net       average dice:{}".format(u2net_total_iou / (i_test + 1),
                                                                                          u2net_total_dice / (
                                                                                                      i_test + 1)))
-            logging.info("interaction average iou:{},interaction average dice:{}".format(u2net_total_iou / (i_test + 1),
+            logging.info("interaction average iou:{},interaction average dice:{}".format(interaction_total_iou / (i_test + 1),
                                                                                   interaction_total_dice / (i_test + 1)))
 
 
