@@ -13,39 +13,35 @@ from torchvision import transforms
 from sklearn.model_selection import train_test_split
 from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
-
+import glob
 
 sam = sam_model_registry['vit_b'](checkpoint='./work_dir/SAM/sam_vit_b_01ec64.pth')
 
-class ISBIDataset(Dataset):
+class MedSAMMICCAIDataset(Dataset):
     def __init__(self, data_dir, data_type="train"):
-        self.data_dir = data_dir
+        self.data_type = data_type
 
         if data_type == "train":
-            filePath = data_dir + "ISBI2016_ISIC_Part3B_Training_GroundTruth.csv"
+            self.data_dir = data_dir + "MICCAI2023/train/"
         if data_type == "test":
-            filePath = data_dir + "ISBI2016_ISIC_Part3B_Test_GroundTruth.csv"
+            self.data_dir = data_dir + "MICCAI2023/val/"
 
-        f = open(filePath, encoding="utf-8")
-        self.names = pd.read_csv(f)
-
-
+        self.image_list = glob.glob(self.data_dir + "/image/*")
+        self.mask_list = glob.glob(self.data_dir + "/mask/*")
         self.transform = ResizeLongestSide(1024)
         self.preprocess = sam.preprocess
         self.img_size = sam.image_encoder.img_size
         self.resize = transforms.Resize((256, 256))
 
     def __len__(self):
-
-        return len(self.names)
+        return len(self.image_list)
 
     def __getitem__(self, idx):
 
         #####################################
-        data = self.names
 
-        image_path = self.data_dir + data["img"].iloc[idx] # 读取image data路径
-        mask_path = self.data_dir + data["seg"].iloc[idx] # 读取mask data 路径
+        image_path = self.image_list[idx] # 读取image data路径
+        mask_path = self.mask_list[idx] # 读取mask data 路径
         #####################################
 
         img = cv2.imread(image_path) # 读取原图数据
