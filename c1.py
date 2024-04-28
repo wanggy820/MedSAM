@@ -73,7 +73,7 @@ def show_box(box, ax):
 # plt.show()
 
 model_type = 'vit_b'
-checkpoint = 'work_dir/SAM/sam_vit_b_01ec64.pth'
+checkpoint = 'work_dir/MedSAM/medsam_vit_b.pth'
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
@@ -86,12 +86,12 @@ sam_model.to(device)
 sam_model.train()
 
 
-
+print("size:{}".format(sam_model.image_encoder.img_size))
 transformed_data = defaultdict(dict)
 for k in bbox_coords.keys():
     image = cv2.imread(f'{data_root}{k}')
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    transform = ResizeLongestSide(sam_model.image_encoder.img_size)
+    transform = ResizeLongestSide(200) #sam_model.image_encoder.img_size
     input_image = transform.apply_image(image)
     input_image_torch = torch.as_tensor(input_image, device=device)
     transformed_image = input_image_torch.permute(2, 0, 1).contiguous()[None, :, :, :]
@@ -119,10 +119,11 @@ losses = []
 
 print("begin train")
 for epoch in range(num_epochs):
+    print(f'EPOCH: {epoch}')
     epoch_losses = []
     # Just train on the first 20 examples
-    for k in keys[:20]:
-        print(">>key:{}".format(k))
+    for k in keys:
+
         input_image = transformed_data[k]['image'].to(device)
         input_size = transformed_data[k]['input_size']
         original_image_size = transformed_data[k]['original_image_size']
@@ -162,7 +163,7 @@ for epoch in range(num_epochs):
         optimizer.step()
         epoch_losses.append(loss.item())
     losses.append(epoch_losses)
-    print(f'EPOCH: {epoch}')
+
     print(f'Mean loss: {mean(epoch_losses)}')
     checkpoint = {
         "model": sam_model.state_dict(),
