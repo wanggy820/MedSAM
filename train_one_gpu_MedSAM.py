@@ -1,6 +1,8 @@
 # 导入了一些库
 import warnings
 
+from MedSAM_Thyroid_Dataset import MedSAM_Thyroid_Dataset
+
 warnings.filterwarnings(action='ignore')
 import numpy as np
 from tqdm import tqdm
@@ -19,22 +21,18 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 
 from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-from segment_anything.utils.transforms import ResizeLongestSide
-from MedSAMISBIDataset import MedSAMISBIDataset
-from MedSAMMICCAIDataset import MedSAMMICCAIDataset
+from MedSAM_ISBI_Dataset import MedSAM_ISBI_Dataset
+from MedSAM_MICCAI_Dataset import MedSAM_MICCAI_Dataset
 
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
 milestone = [60000, 86666]
 gamma = 0.1
-use_cuda = torch.cuda.is_available()
-device = torch.device("cuda" if use_cuda else "cpu")
-
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default='MICCAI', help='model name')
+    parser.add_argument('--model_name', type=str, default='Thyroid', help='model name')
     parser.add_argument('--batch_size', type=int, default=4, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -45,16 +43,17 @@ def parse_opt():
     parser.add_argument('--model_path', type=str, default='./models/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
-    parser.add_argument('--device_id', type=int, default=0, help='Cuda device Id')
 
     return parser.parse_known_args()[0]
 
 
 def getDatasets(model_name, data_dir, key):
     if model_name == "ISBI":
-        return MedSAMISBIDataset(data_dir, key)
+        return MedSAM_ISBI_Dataset(data_dir, key)
     if model_name == "MICCAI":
-        return MedSAMMICCAIDataset(data_dir, key)
+        return MedSAM_MICCAI_Dataset(data_dir, key)
+    if model_name == "Thyroid":
+        return MedSAM_Thyroid_Dataset(data_dir, key)
 
 # 数据加载
 def build_dataloader(model_name, data_dir, batch_size, num_workers):
@@ -116,10 +115,12 @@ def mean_iou(preds, labels, eps=1e-6):
 
 
 def main(opt):
-    use_cuda = torch.cuda.is_available()
-    device = torch.device(f"cuda:{opt.device_id}" if use_cuda else "cpu")
+    if torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(234)
-    if device == f'cuda:{opt.device_id}':
+    if device == f'cuda:0':
         torch.cuda.manual_seed_all(234)
     #  脚本使用预先构建的架构（sam_model_registry['vit_b']）定义了一个神经网络模型，并设置了优化器（AdamW）和学习率调度。
     print(device, 'is available')
@@ -170,7 +171,9 @@ def main(opt):
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
-            train_target_mask = train_data['mask'].to(device, dtype=torch.float64)
+
+
+            train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
