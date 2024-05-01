@@ -1,28 +1,18 @@
 # 导入了一些库
 import warnings
-
-from MedSAM_Thyroid_Dataset import MedSAM_Thyroid_Dataset
+from utils.data_convert import build_dataloader, mean_iou, compute_loss
 
 warnings.filterwarnings(action='ignore')
 import numpy as np
 from tqdm import tqdm
-import cv2
 from datetime import datetime
-import json
 import os
 import matplotlib.pyplot as plt
 import argparse
-
 import torch
 from torch import nn, optim
-import torch.nn.functional as F
-from torch.nn.functional import threshold, normalize
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from segment_anything import sam_model_registry
 
-from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-from MedSAM_ISBI_Dataset import MedSAM_ISBI_Dataset
-from MedSAM_MICCAI_Dataset import MedSAM_MICCAI_Dataset
 
 
 # 设置了一些配置参数
@@ -33,10 +23,10 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, default='Thyroid', help='model name')
-    parser.add_argument('--batch_size', type=int, default=4, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=10, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -45,74 +35,6 @@ def parse_opt():
     parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
 
     return parser.parse_known_args()[0]
-
-
-def getDatasets(model_name, data_dir, key):
-    if model_name == "ISBI":
-        return MedSAM_ISBI_Dataset(data_dir, key)
-    if model_name == "MICCAI":
-        return MedSAM_MICCAI_Dataset(data_dir, key)
-    if model_name == "Thyroid":
-        return MedSAM_Thyroid_Dataset(data_dir, key)
-
-# 数据加载
-def build_dataloader(model_name, data_dir, batch_size, num_workers):
-    dataloaders = {
-        key: DataLoader(
-            getDatasets(model_name, data_dir, key),
-            batch_size=batch_size,
-            shuffle=True if key != 'test' else False,
-            num_workers=num_workers,
-            pin_memory=True
-        ) for key in ['train', 'test']
-    }
-
-    return dataloaders
-
-
-# 损失函数
-def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
-    # pred = F.sigmoid(pred)
-    pt = torch.where(target == 1, pred, 1 - pred)
-    ce_loss = F.binary_cross_entropy(pred, target, reduction="none")
-    focal_term = (1 - pt).pow(gamma)
-    loss = alpha * focal_term * ce_loss
-
-    return loss.mean()
-
-
-def dice_loss(pred, target, smooth=1.0):
-    pred_flat = pred.reshape(-1)
-    target_flat = target.reshape(-1)
-    intersection = (pred_flat * target_flat).sum()
-
-    return 1 - ((2. * intersection + smooth) /
-                (pred_flat.sum() + target_flat.sum() + smooth))
-
-
-def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
-    pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float64)
-    fl = focal_loss(pred_mask, true_mask)
-    dl = dice_loss(pred_mask, true_mask)
-    mask_loss = 20 * fl + dl
-    iou_loss = F.mse_loss(pred_iou, true_iou)
-    total_loss = mask_loss + iou_loss
-
-    return total_loss
-
-
-def mean_iou(preds, labels, eps=1e-6):
-    preds = normalize(threshold(preds, 0.0, 0)).squeeze(1)
-    pred_cls = (preds == 1).float()
-    label_cls = (labels == 1).float()
-    intersection = (pred_cls * label_cls).sum(1).sum(1)
-    union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
-    intersection = intersection + (union == 0)
-    union = union + (union == 0)
-    ious = intersection / union
-
-    return ious
-
 
 def main(opt):
     if torch.backends.mps.is_available():
@@ -127,7 +49,9 @@ def main(opt):
     print("Loading model...")
     epoch_add = 0
     lr = opt.lr
-    sam = sam_model_registry['vit_b'](checkpoint='./work_dir/SAM/sam_vit_b_01ec64.pth')
+
+    checkpoint = f"./models/{opt.model_name}_sam_best.pth"   #'./work_dir/SAM/sam_vit_b_01ec64.pth'
+    sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
 
     if opt.pretrained:
         sam.load_state_dict(torch.load('./models/' + opt.pretrained))
@@ -137,7 +61,7 @@ def main(opt):
 
     optimizer = optim.AdamW(sam.mask_decoder.parameters(),
                             lr=lr, betas=beta, weight_decay=opt.weight_decay)
-    criterion = nn.CrossEntropyLoss()
+    
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
@@ -159,7 +83,7 @@ def main(opt):
     val_pl_loss_list = []
     val_pl_mi_list = []
 
-    dataloaders = build_dataloader(opt.model_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader(sam, opt.model_name, opt.data_dir, opt.batch_size, opt.num_workers)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
@@ -233,15 +157,11 @@ def main(opt):
         with torch.no_grad():
             valid_loss_list = []
             valid_miou_list = []
-            valid_true_iou = 0
-            valid_loss = 0
-            valid_miou = 0
 
             iterations = tqdm(dataloaders['test'])
-
             for valid_data in iterations:
                 valid_input = valid_data['image'].to(device)
-                valid_target_mask = valid_data['mask'].to(device, dtype=torch.float64)
+                valid_target_mask = valid_data['mask'].to(device, dtype=torch.float32)
 
                 valid_encode_feature = sam.image_encoder(valid_input)
                 valid_sparse_embeddings, valid_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
