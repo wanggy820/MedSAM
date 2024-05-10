@@ -1,0 +1,6 @@
+Experimental Day: 2024-05-01 16:22:33.897431
+mIoU: 0.5611130017216491
+epochs:10
+batch_size:2
+learning_rate:1e-05
+Data_set : ./datasets/

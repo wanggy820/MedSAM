@@ -1,20 +1,15 @@
-
 import numpy as np
-import pandas as pd
-import os
 import cv2
-import csv
-import random
-
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
-from sklearn.model_selection import train_test_split
-from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
-import glob
+from PIL import Image
 
+def read_picture(file_path):
+    with Image.open(file_path) as img:
+        return np.array(img)
 class MedSAM_Dataset(Dataset):
     def __init__(self, sam, image_list, mask_list):
         self.device = sam.device
@@ -37,7 +32,13 @@ class MedSAM_Dataset(Dataset):
         mask_path = self.mask_list[idx] # 读取mask data 路径
         #####################################
 
-        img = cv2.imread(image_path) # 读取原图数据
+        if mask_path.endswith(".gif"):
+            img = read_picture(image_path)
+            mask = read_picture(mask_path)
+        else:
+            img = cv2.imread(image_path)  # 读取原图数据
+            mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         img = self.transform.apply_image(img) #
@@ -47,7 +48,7 @@ class MedSAM_Dataset(Dataset):
         img = self.preprocess(img.to(device=self.device)) # img nomalize or padding
         #####################################
 
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+
         mask = self.transform.apply_image(mask) # 变换(1024)
 
         mask = torch.as_tensor(mask) # torch tensor

@@ -72,8 +72,8 @@ def main():
     tra_lbl_name_list = glob.glob("../datasets/MICCAI2023/train/mask/*")
 
     salobj_dataset = SalObjDataset(
-        img_name_list=tra_img_name_list,
-        lbl_name_list=tra_lbl_name_list,
+        image_list=tra_img_name_list,
+        mask_list=tra_lbl_name_list,
         transform=transforms.Compose([
             RescaleT(320),
             RandomCrop(288),
@@ -115,7 +115,7 @@ def main():
 
         total_iou = 0
         for i, data in enumerate(train_dataloader):
-            inputs, labels = data['image'], data['label']
+            inputs, labels = data['image'], data['mask']
             inputs = inputs.type(torch.FloatTensor)
             labels = labels.type(torch.FloatTensor)
 

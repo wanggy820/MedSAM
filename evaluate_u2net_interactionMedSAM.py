@@ -83,7 +83,7 @@ def find_u2net_bboxes(input, image_name):
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--model_name", type=str, default='ISBI', help="model_name")
+    parser.add_argument("--model_name", type=str, default='DRIVE', help="model_name")
     parser.add_argument("--root_dir", type=str, default='./datasets/', help="root_dir")
     return parser
 
@@ -100,8 +100,8 @@ def main():
     logging.basicConfig(filename="./val/" + model_name + '_val' + '.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
     # --------- 2. dataloader ---------
     #1. dataloader
-    test_salobj_dataset = SalObjDataset(img_name_list=image_list,
-                                        lbl_name_list=mask_list,
+    test_salobj_dataset = SalObjDataset(image_list=image_list,
+                                        mask_list=mask_list,
                                         transform=transforms.Compose([RescaleT(320),
                                                                       ToTensorLab(flag=0)])
                                         )
@@ -134,7 +134,7 @@ def main():
             print("inferencing:", inferencing)
             logging.info("inferencing:{}".format(inferencing))
 
-            inputs, labels = data['image'], data['label']
+            inputs, labels = data['image'], data['mask']
             #####################################  U2Net
             inputs = inputs.type(torch.FloatTensor).to(device)
             d1, d2, d3, d4, d5, d6, d7 = net(inputs)

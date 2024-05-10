@@ -19,7 +19,7 @@ class RescaleT(object):
 		self.output_size = output_size
 
 	def __call__(self,sample):
-		imidx, image, label = sample['imidx'], sample['image'],sample['label']
+		imidx, image, mask = sample['imidx'], sample['image'],sample['mask']
 
 		h, w = image.shape[:2]
 
@@ -35,12 +35,12 @@ class RescaleT(object):
 
 		# #resize the image to new_h x new_w and convert image from range [0,255] to [0,1]
 		# img = transform.resize(image,(new_h,new_w),mode='constant')
-		# lbl = transform.resize(label,(new_h,new_w),mode='constant', order=0, preserve_range=True)
+		# lbl = transform.resize(mask,(new_h,new_w),mode='constant', order=0, preserve_range=True)
 
 		img = transform.resize(image,(self.output_size,self.output_size),mode='constant')
-		lbl = transform.resize(label,(self.output_size,self.output_size),mode='constant', order=0, preserve_range=True)
+		lbl = transform.resize(mask,(self.output_size,self.output_size),mode='constant', order=0, preserve_range=True)
 
-		return {'imidx':imidx, 'image':img,'label':lbl}
+		return {'imidx':imidx, 'image':img,'mask':lbl}
 
 class Rescale(object):
 
@@ -49,11 +49,11 @@ class Rescale(object):
 		self.output_size = output_size
 
 	def __call__(self,sample):
-		imidx, image, label = sample['imidx'], sample['image'],sample['label']
+		imidx, image, mask = sample['imidx'], sample['image'],sample['mask']
 
 		if random.random() >= 0.5:
 			image = image[::-1]
-			label = label[::-1]
+			mask = mask[::-1]
 
 		h, w = image.shape[:2]
 
@@ -69,9 +69,9 @@ class Rescale(object):
 
 		# #resize the image to new_h x new_w and convert image from range [0,255] to [0,1]
 		img = transform.resize(image,(new_h,new_w),mode='constant')
-		lbl = transform.resize(label,(new_h,new_w),mode='constant', order=0, preserve_range=True)
+		lbl = transform.resize(mask,(new_h,new_w),mode='constant', order=0, preserve_range=True)
 
-		return {'imidx':imidx, 'image':img,'label':lbl}
+		return {'imidx':imidx, 'image':img,'mask':lbl}
 
 class RandomCrop(object):
 
@@ -83,11 +83,11 @@ class RandomCrop(object):
 			assert len(output_size) == 2
 			self.output_size = output_size
 	def __call__(self,sample):
-		imidx, image, label = sample['imidx'], sample['image'], sample['label']
+		imidx, image, mask = sample['imidx'], sample['image'], sample['mask']
 
 		if random.random() >= 0.5:
 			image = image[::-1]
-			label = label[::-1]
+			mask = mask[::-1]
 
 		h, w = image.shape[:2]
 		new_h, new_w = self.output_size
@@ -96,9 +96,9 @@ class RandomCrop(object):
 		left = np.random.randint(0, w - new_w)
 
 		image = image[top: top + new_h, left: left + new_w]
-		label = label[top: top + new_h, left: left + new_w]
+		mask = mask[top: top + new_h, left: left + new_w]
 
-		return {'imidx':imidx,'image':image, 'label':label}
+		return {'imidx':imidx,'image':image, 'mask':mask}
 
 class ToTensor(object):
 	"""Convert ndarrays in sample to Tensors."""
@@ -107,17 +107,17 @@ class ToTensor(object):
 
 	def __call__(self, sample):
 
-		imidx, image, label = sample['imidx'], sample['image'], sample['label']
+		imidx, image, mask = sample['imidx'], sample['image'], sample['mask']
 
 		tmpImg = np.zeros((image.shape[0],image.shape[1],3))
-		tmpLbl = np.zeros(label.shape)
+		tmpLbl = np.zeros(mask.shape)
 
 		image = image/np.max(image)
 		if self.num_class == 1:
-			if (np.max(label) < 1e-6):
-				label = label
+			if (np.max(mask) < 1e-6):
+				mask = mask
 			else:
-				label = label / np.max(label)
+				mask = mask / np.max(mask)
 
 		if image.shape[2]==1:
 			tmpImg[:,:,0] = (image[:,:,0]-0.485)/0.229
@@ -128,13 +128,13 @@ class ToTensor(object):
 			tmpImg[:,:,1] = (image[:,:,1]-0.456)/0.224
 			tmpImg[:,:,2] = (image[:,:,2]-0.406)/0.225
 
-		tmpLbl[:,:,0] = label[:,:,0]
+		tmpLbl[:,:,0] = mask[:,:,0]
 
 
 		tmpImg = tmpImg.transpose((2, 0, 1))
-		tmpLbl = label.transpose((2, 0, 1))
+		tmpLbl = mask.transpose((2, 0, 1))
 
-		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'label': torch.from_numpy(tmpLbl)}
+		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'mask': torch.from_numpy(tmpLbl)}
 
 class ToTensorLab(object):
 	"""Convert ndarrays in sample to Tensors."""
@@ -144,15 +144,15 @@ class ToTensorLab(object):
 
 	def __call__(self, sample):
 
-		imidx, image, label =sample['imidx'], sample['image'], sample['label']
+		imidx, image, mask =sample['imidx'], sample['image'], sample['mask']
 
-		tmpLbl = np.zeros(label.shape)
+		tmpLbl = np.zeros(mask.shape)
 
 		if self.num_class == 1:
-			if (np.max(label) < 1e-6):
-				label = label
+			if (np.max(mask) < 1e-6):
+				mask = mask
 			else:
-				label = label / np.max(label)
+				mask = mask / np.max(mask)
 
 		# change the color space
 		if self.flag == 2: # with rgb and Lab colors
@@ -217,55 +217,50 @@ class ToTensorLab(object):
 				tmpImg[:,:,1] = (image[:,:,1]-0.456)/0.224
 				tmpImg[:,:,2] = (image[:,:,2]-0.406)/0.225
 
-		tmpLbl[:,:,0] = label[:,:,0]
+		tmpLbl[:,:,0] = mask[:,:,0]
 
 
 		tmpImg = tmpImg.transpose((2, 0, 1))
-		tmpLbl = label.transpose((2, 0, 1))
+		tmpLbl = mask.transpose((2, 0, 1))
 
 		tmpImg = np.ascontiguousarray(tmpImg)
 		tmpLbl = np.ascontiguousarray(tmpLbl)
-		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'label': torch.from_numpy(tmpLbl)}
+		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'mask': torch.from_numpy(tmpLbl)}
 
 class SalObjDataset(Dataset):
-	def __init__(self,img_name_list,lbl_name_list,transform=None):
-		# self.root_dir = root_dir
-		# self.image_name_list = glob.glob(image_dir+'*.png')
-		# self.label_name_list = glob.glob(label_dir+'*.png')
-		self.image_name_list = img_name_list
-		self.label_name_list = lbl_name_list
+	def __init__(self, image_list, mask_list, transform=None):
+		self.image_list = image_list
+		self.mask_list = mask_list
 		self.transform = transform
 
 	def __len__(self):
-		return len(self.image_name_list)
+		return len(self.image_list)
 
 	def __getitem__(self,idx):
+		image_name = self.image_list[idx]
+		image = io.imread(image_name)
 
-		# image = Image.open(self.image_name_list[idx])#io.imread(self.image_name_list[idx])
-		# label = Image.open(self.label_name_list[idx])#io.imread(self.label_name_list[idx])
-
-		image = io.imread(self.image_name_list[idx])
-		imname = self.image_name_list[idx]
+		mask_name = self.mask_list[idx]
 		imidx = np.array([idx])
 
-		if(0==len(self.label_name_list)):
-			label_3 = np.zeros(image.shape)
+		if(0==len(self.mask_list)):
+			mask_3 = np.zeros(image.shape)
 		else:
-			label_3 = io.imread(self.label_name_list[idx])
+			mask_3 = io.imread(mask_name)
 
-		label = np.zeros(label_3.shape[0:2])
-		if(3==len(label_3.shape)):
-			label = label_3[:,:,0]
-		elif(2==len(label_3.shape)):
-			label = label_3
+		mask = np.zeros(mask_3.shape[0:2])
+		if(3==len(mask_3.shape)):
+			mask = mask_3[:,:,0]
+		elif(2==len(mask_3.shape)):
+			mask = mask_3
 
-		if(3==len(image.shape) and 2==len(label.shape)):
-			label = label[:,:,np.newaxis]
-		elif(2==len(image.shape) and 2==len(label.shape)):
+		if(3==len(image.shape) and 2==len(mask.shape)):
+			mask = mask[:,:,np.newaxis]
+		elif(2==len(image.shape) and 2==len(mask.shape)):
 			image = image[:,:,np.newaxis]
-			label = label[:,:,np.newaxis]
+			mask = mask[:,:,np.newaxis]
 
-		sample = {'imidx':imidx, 'image':image, 'label':label}
+		sample = {'imidx':imidx, 'image':image, 'mask':mask}
 
 		if self.transform:
 			sample = self.transform(sample)

@@ -114,8 +114,8 @@ def compute_sam_dice(sam, image_path, mask_path, bboxes):
         valid_dice = np.mean(valid_dice_list)
         return valid_loss, valid_miou, valid_dice
 
-def getDatasets(model_name, root_dir, data_type):
-    if model_name == "ISBI":
+def getDatasets(datasets, root_dir, data_type):
+    if datasets == "ISBI":
         data_dir = root_dir + "ISBI/"
         if data_type == "train":
             filePath = data_dir + "ISBI2016_ISIC_Part3B_Training_GroundTruth.csv"
@@ -131,7 +131,7 @@ def getDatasets(model_name, root_dir, data_type):
             mask_list.append(data_dir + seg)
         return image_list, mask_list
 
-    if model_name == "MICCAI":
+    if datasets == "MICCAI":
         if data_type == "train":
             data_dir = root_dir + "MICCAI2023/train/"
         if data_type == "test":
@@ -141,7 +141,7 @@ def getDatasets(model_name, root_dir, data_type):
         mask_list = sorted(glob.glob(data_dir + "/mask/*"))
         return image_list, mask_list
 
-    if model_name == "Thyroid":
+    if datasets == "Thyroid":
         data_dir = root_dir + "Thyroid_Dataset/tg3k/"
 
         with open(data_dir + "tg3k-trainval.json", 'r', encoding='utf-8') as fp:
@@ -160,13 +160,13 @@ def getDatasets(model_name, root_dir, data_type):
             mask_list.append(mask_path)
         return image_list, mask_list
 
-    if model_name == "DRIVE":
+    if datasets == "DRIVE":
         if data_type == "train":
             data_dir = root_dir + "DRIVE/training/"
         if data_type == "test":
             data_dir = root_dir + "DRIVE/test/"
-        image_list = glob.glob(data_dir + "/images/*")
-        mask_list = glob.glob(data_dir + "/mask/*")
+        image_list = sorted(glob.glob(data_dir + "/images/*"))
+        mask_list = sorted(glob.glob(data_dir + "/mask_jpg/*"))
         return image_list, mask_list
 
 # 数据加载

@@ -50,7 +50,10 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    checkpoint = f"./models/{opt.model_name}_sam_best.pth"   #'./work_dir/SAM/sam_vit_b_01ec64.pth'
+    checkpoint = f"./models/{opt.model_name}_sam_best.pth"
+    if not os.path.exists(checkpoint):
+        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
+
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
 
     if opt.pretrained:
@@ -61,7 +64,7 @@ def main(opt):
 
     optimizer = optim.AdamW(sam.mask_decoder.parameters(),
                             lr=lr, betas=beta, weight_decay=opt.weight_decay)
-    
+
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
