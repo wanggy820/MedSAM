@@ -72,7 +72,7 @@ def compute_sam_dice(sam, image_path, mask_path, bboxes):
     box_torch = torch.as_tensor(box_1024, dtype=torch.float, device=sam.device)
 
     datasets = MedSAM_Dataset(sam, [image_path], [mask_path])
-    dataloaders = DataLoader(datasets, batch_size=1, shuffle=False,  num_workers=0, pin_memory=True)
+    dataloaders = DataLoader(datasets, batch_size=1, shuffle=False,  num_workers=0, pin_memory=False)
     torch.cuda.empty_cache()
 
     sam.eval()
@@ -179,6 +179,6 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
             batch_size=batch_size,
             shuffle=True if key != 'test' else False,
             num_workers=num_workers,
-            pin_memory=True
+            pin_memory=False
         )
     return dataloaders

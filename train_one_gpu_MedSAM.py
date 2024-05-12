@@ -22,11 +22,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default='Thyroid', help='model name')
+    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
     parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=10, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=500, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -50,7 +50,7 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    checkpoint = f"./models/{opt.model_name}_sam_best.pth"
+    checkpoint = f"./models/{opt.datasets}_sam_best.pth"
     if not os.path.exists(checkpoint):
         checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
 
@@ -69,11 +69,11 @@ def main(opt):
 
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
     if len(os.listdir(opt.model_path)) == 0:
-        save_path = os.path.join(opt.model_path, f"{opt.model_name}_model_{opt.epochs}_{opt.batch_size}_0")
+        save_path = os.path.join(opt.model_path, f"{opt.datasets}_model_{opt.epochs}_{opt.batch_size}_0")
         os.makedirs(save_path)
     else:
         save_path = os.path.join(opt.model_path,
-                                 f"{opt.model_name}_model_{opt.epochs}_{opt.batch_size}_" + str(len(os.listdir(opt.model_path))))
+                                 f"{opt.datasets}_model_{opt.epochs}_{opt.batch_size}_" + str(len(os.listdir(opt.model_path))))
         os.makedirs(save_path)
 
     print('Training Start')
@@ -86,7 +86,7 @@ def main(opt):
     val_pl_loss_list = []
     val_pl_mi_list = []
 
-    dataloaders = build_dataloader(sam, opt.model_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader(sam, opt.datasets, opt.data_dir, opt.batch_size, opt.num_workers)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
@@ -196,15 +196,11 @@ def main(opt):
             val_pl_loss_list.append(valid_loss)
             val_pl_mi_list.append(valid_miou)
 
-        model_path = opt.model_path + opt.model_name + '_sam.pth'
-        sam = sam.cpu()
-        torch.save(sam.state_dict(), model_path)
         sam = sam.to(device)
-
         if best_mIOU < valid_miou:
             best_loss = valid_loss
             best_mIOU = valid_miou
-            model_path = save_path + f'/{opt.model_name}_sam_best.pth'
+            model_path = save_path + f'/{opt.datasets}_sam_best.pth'
             sam = sam.cpu()
             torch.save(sam.state_dict(), model_path)
             sam = sam.to(device)
@@ -234,7 +230,7 @@ def main(opt):
         lr = optimizer.param_groups[0]["lr"]
 
         if (epoch + 1) % 5 == 0 or (epoch + 1) in [1, 2, 3, 4, 5]:
-            model_path = save_path + "/" +opt.model_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(round(lr, 10)) + '.pth'
+            model_path = save_path + "/" +opt.datasets + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(round(lr, 10)) + '.pth'
             sam = sam.cpu()
             torch.save(sam.state_dict(), model_path)
             sam = sam.to(device)
@@ -256,7 +252,7 @@ def main(opt):
         plt.ylabel(f'{key.split("_")[-1]}', fontsize=15)
         plt.grid(True)
 
-    plt.savefig(save_path + f'/{opt.model_name}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
+    plt.savefig(save_path + f'/{opt.datasets}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
 
 
 if __name__ == '__main__':

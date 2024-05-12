@@ -16,7 +16,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default='DRIVE', help='model name')
+    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -42,13 +42,13 @@ def main(opt):
     print(device, 'is available')
     print("Loading model...")
 
-    checkpoint = f"./models/{opt.model_name}_sam_best.pth"
+    checkpoint = f"./models/{opt.datasets}_sam_best.pth"
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
     sam = sam.to(device=device)
 
     print('Training Start')
 
-    dataloaders = build_dataloader(sam, opt.model_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader(sam, opt.datasets, opt.data_dir, opt.batch_size, opt.num_workers)
     torch.cuda.empty_cache()
 
     sam.eval()
@@ -85,7 +85,7 @@ def main(opt):
             valid_dice_one = dice_function(valid_mask, valid_target_mask)
             valid_dice_list.append(valid_dice_one.item())
 
-            pbar_desc = f"{opt.model_name} valid loss ---"
+            pbar_desc = f"{opt.datasets} valid loss ---"
             pbar_desc += f" mean loss: {np.mean(valid_loss_list):.6f}"
             pbar_desc += f", mean mIOU: {np.mean(valid_miou_list):.6f}"
             pbar_desc += f", mean dice: {np.mean(valid_dice_list):.6f}"
@@ -95,7 +95,7 @@ def main(opt):
         valid_miou = np.mean(valid_miou_list)
         valid_dice = np.mean(valid_dice_list)
         print("{} mean loss : {:3.6f}, mean mIOU : {:3.6f}, mean dice : {:3.6f}"
-              .format(opt.model_name, valid_loss, valid_miou, valid_dice))
+              .format(opt.datasets, valid_loss, valid_miou, valid_dice))
 if __name__ == '__main__':
     opt = parse_opt()
     main(opt)

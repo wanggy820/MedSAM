@@ -5,6 +5,8 @@ import torch
 from torch.utils.data import DataLoader
 from PIL import Image
 from torchvision.transforms import transforms
+
+from U2_Net.U2netSegDataset import U2netSegDataset
 from U2_Net.data_loader import ToTensorLab, RescaleT
 from U2_Net.data_loader import SalObjDataset
 from U2_Net.model import U2NET # full size version 173.6 MB
@@ -83,42 +85,35 @@ def find_u2net_bboxes(input, image_name):
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--model_name", type=str, default='DRIVE', help="model_name")
+    parser.add_argument("--datasets", type=str, default='DRIVE', help="datasets")
     parser.add_argument("--root_dir", type=str, default='./datasets/', help="root_dir")
     return parser
 
 def main():
     opt = get_argparser().parse_args()
 
-    model_name = opt.model_name
-    image_list, mask_list = getDatasets(model_name, opt.root_dir, "test")
+    datasets = opt.datasets
+    image_list, mask_list = getDatasets(datasets, opt.root_dir, "test")
     print("Number of images: ", len(image_list))
 
 
-    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + model_name + '.pth'
+    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
 
-    logging.basicConfig(filename="./val/" + model_name + '_val' + '.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename="./val/" + datasets + '_val' + '.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
     # --------- 2. dataloader ---------
     #1. dataloader
-    test_salobj_dataset = SalObjDataset(image_list=image_list,
-                                        mask_list=mask_list,
-                                        transform=transforms.Compose([RescaleT(320),
-                                                                      ToTensorLab(flag=0)])
-                                        )
-    test_salobj_dataloader = DataLoader(test_salobj_dataset,
-                                        batch_size=1,
-                                        shuffle=False,
-                                        num_workers=1)
+    test_dataset = U2netSegDataset(image_list, mask_list, input_size=(320, 320))
+    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=1)
 
     # --------- 3. model define ---------
 
     print("...load U2NET---176.4 MB")
     net = U2NET(3,1)
-    net.load_state_dict(torch.load(model_dir))
+    net.load_state_dict(torch.load(model_dir,map_location=device))
     net.to(device)
     net.eval()
 
-    checkpoint = f"./models/{model_name}_sam_best.pth"
+    checkpoint = f"./models/{datasets}_sam_best.pth"
     # set up model
     medsam_model = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
     medsam_model.eval()
@@ -129,12 +124,11 @@ def main():
         u2net_total_iou = 0
         interaction_total_dice = 0
         interaction_total_iou = 0
-        for index, data in enumerate(test_salobj_dataloader):
+        for index, (inputs, labels) in enumerate(test_loader):
             inferencing = image_list[index]
             print("inferencing:", inferencing)
             logging.info("inferencing:{}".format(inferencing))
 
-            inputs, labels = data['image'], data['mask']
             #####################################  U2Net
             inputs = inputs.type(torch.FloatTensor).to(device)
             d1, d2, d3, d4, d5, d6, d7 = net(inputs)
