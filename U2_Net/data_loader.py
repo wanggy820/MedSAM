@@ -240,12 +240,12 @@ class SalObjDataset(Dataset):
 		image_name = self.image_list[idx]
 		image = io.imread(image_name)
 
-		mask_name = self.mask_list[idx]
 		imidx = np.array([idx])
 
 		if(0==len(self.mask_list)):
 			mask_3 = np.zeros(image.shape)
 		else:
+			mask_name = self.mask_list[idx]
 			mask_3 = io.imread(mask_name)
 
 		mask = np.zeros(mask_3.shape[0:2])
@@ -260,7 +260,7 @@ class SalObjDataset(Dataset):
 			image = image[:,:,np.newaxis]
 			mask = mask[:,:,np.newaxis]
 
-		sample = {'imidx':imidx, 'image':image, 'mask':mask}
+		sample = {'imidx': imidx, 'image': image, 'mask': mask}
 
 		if self.transform:
 			sample = self.transform(sample)

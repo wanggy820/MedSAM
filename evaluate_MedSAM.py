@@ -16,7 +16,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
+    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -42,7 +42,8 @@ def main(opt):
     print(device, 'is available')
     print("Loading model...")
 
-    checkpoint = f"./models/{opt.datasets}_sam_best.pth"
+    # checkpoint = f"./models/{opt.datasets}_sam_best.pth"
+    checkpoint = "work_dir/MedSAM/medsam_vit_b.pth"
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
     sam = sam.to(device=device)
 

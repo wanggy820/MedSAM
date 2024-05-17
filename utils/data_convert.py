@@ -8,6 +8,7 @@ from MedSAM_Dataset import MedSAM_Dataset
 from torch.utils.data import DataLoader
 from torch.nn.functional import threshold, normalize
 from skimage import io
+from PIL import Image
 
 # 损失函数
 def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
@@ -133,9 +134,9 @@ def getDatasets(datasets, root_dir, data_type):
 
     if datasets == "MICCAI":
         if data_type == "train":
-            data_dir = root_dir + "MICCAI2023/train/"
+            data_dir = root_dir + "MICCAI2023/train"
         if data_type == "test":
-            data_dir = root_dir + "MICCAI2023/val/"
+            data_dir = root_dir + "MICCAI2023/val"
 
         image_list = sorted(glob.glob(data_dir + "/image/*"))
         mask_list = sorted(glob.glob(data_dir + "/mask/*"))
@@ -182,3 +183,38 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
             pin_memory=False
         )
     return dataloaders
+
+
+def normPRED(d):
+    ma = torch.max(d)
+    mi = torch.min(d)
+
+    dn = (d-mi)/(ma-mi)
+    dn = torch.where(dn > (ma-mi)/2.0, 1.0, 0)
+    return dn
+def find_u2net_bboxes(input, image_name):
+    # normalization
+    pred = input[:, 0, :, :]
+    masks = normPRED(pred)
+
+    predict = masks.squeeze()
+    predict_np = predict.cpu().data.numpy()
+
+    im = Image.fromarray(predict_np*255).convert('L')
+    image = io.imread(image_name)
+    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
+    # imo.save("33.png")
+
+    pred = np.array(imo)
+
+    H, W, _ = image.shape
+    y_indices, x_indices = np.where(pred > 0)
+    x_min, x_max = np.min(x_indices), np.max(x_indices)
+    y_min, y_max = np.min(y_indices), np.max(y_indices)
+    x_min = max(0, x_min)
+    x_max = min(W, x_max)
+    y_min = max(0, y_min)
+    y_max = min(H, y_max)
+    box_np = np.array([[x_min, y_min, x_max, y_max]])
+
+    return box_np

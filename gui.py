@@ -50,6 +50,8 @@ import cv2
 from DeepLabV3Plus import network
 from torchvision import transforms as T
 
+from utils.data_convert import find_u2net_bboxes
+
 # freeze seeds
 torch.manual_seed(2023)
 torch.cuda.empty_cache()
@@ -57,6 +59,7 @@ torch.cuda.manual_seed(2023)
 np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
+# MedSAM_CKPT_PATH = "models/ISBI_sam_best.pth"
 MedSAM_CKPT_PATH = "work_dir/MedSAM/medsam_vit_b.pth"
 MEDSAM_IMG_INPUT_SIZE = 1024
 
@@ -131,88 +134,11 @@ colors = [
     (255, 255, 255),
 ]
 
-def find_bbox(mask):
-    _, labels, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8))
-    stats = stats[stats[:,4].argsort()]
-    return stats[:-1]
-def get_deeplbv3_bbox(img_path):
-    num_classes = 2
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = network.modeling.__dict__['deeplabv3plus_mobilenet'](num_classes=num_classes, output_stride=16)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
-    checkpoint = torch.load("DeepLabV3Plus/result/model.pt", map_location=torch.device('cpu'))
-    model.load_state_dict(checkpoint)
-    model = nn.DataParallel(model)
-    model.to(device)
-    transform = T.Compose([
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225]),
-    ])
-    with torch.no_grad():
-        model = model.eval()
-        img = Image.open(img_path).convert('RGB')
-        img = transform(img).unsqueeze(0)  # To tensor of NCHW
-        img = img.to(device)
-        pre = model(img)
-        mask = pre.max(1)[1].cpu().numpy()[0]  # HW
-        bboxs = find_bbox(mask)
-        return bboxs
-
-def normPRED(d):
-    ma = torch.max(d)
-    mi = torch.min(d)
-
-    dn = (d-mi)/(ma-mi)
-    dn = torch.where(dn > (ma-mi)/2.0, 1.0, 0)
-    return dn
-
-def find_u2net_bboxes(input, image_name):
-    # normalization
-    pred = input[:, 0, :, :]
-    masks = normPRED(pred)
-
-    predict = masks.squeeze()
-    predict_np = predict.cpu().data.numpy()
-
-    im = Image.fromarray(predict_np*255).convert('RGB')
-    image = io.imread(image_name)
-    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
-
-
-    pred = np.array(imo)
-
-    imo.save("33.png")
-    masks = np.expand_dims(pred, axis=0)
-    boxes = []
-    maxw = maxh = 0
-    #
-    for i in range(masks.shape[0]):
-        mask = masks[i]
-        coor = np.nonzero(mask)
-        xmin = coor[0][0]
-        xmax = coor[0][-1]
-        coor[1].sort()  # 直接改变原数组，没有返回值
-        ymin = coor[1][0]
-        ymax = coor[1][-1]
-
-        width = ymax - ymin
-        height = xmax - xmin
-
-        # 这儿可以不要，这是为了找到最大值方便分割成统一的矩形
-        if width > maxw:
-            maxw = width
-        if height > maxh:
-            maxh = height
-        boxes.append((ymin, xmin, maxw, maxh))
-    return np.array(boxes)
-
 def get_u2net_bbox(img_path):
-    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_Thyroid.pth"
+    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_MICCAI.pth"
     img_name_list = [img_path]
-    test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
-                                        lbl_name_list = [],
+    test_salobj_dataset = SalObjDataset(image_list=img_name_list,
+                                        mask_list=img_name_list,
                                         transform=transforms.Compose([RescaleT(320),
                                                                       ToTensorLab(flag=0)])
                                         )
@@ -306,7 +232,7 @@ class Window(QWidget):
 
     def load_image(self):
         file_path, file_type = QFileDialog.getOpenFileName(
-            self, "Choose Image to Segment", ".", "Image Files (*.png *.jpg *.bmp)"
+            self, "Choose Image to Segment", ".", "Image Files (*.png *.jpg *.bmp *.tif)"
         )
 
         if file_path is None or len(file_path) == 0:
@@ -341,27 +267,10 @@ class Window(QWidget):
 
 
         bboxs = get_u2net_bbox(self.image_path)
-        box = [0,0,0,0]
-        box = np.array(box)
-
-        for j in bboxs:
-            # self.scene.addRect(
-            #     j[0], j[1], j[2], j[3], pen=QPen(QColor("red"))
-            # )
-            if box[2] * box[3] < j[2] * j[3]:
-                box = j
-            else:
-                continue
-            xmin = j[0]
-            ymin = j[1]
-            xmax = j[0] + j[2]
-            ymax = j[1] + j[3]
-
+        box = bboxs.squeeze(0)
         H, W, _ = self.img_3c.shape
-        box_np = np.array([[xmin, ymin, xmax, ymax]])
-        # print("bounding box:", box_np)
-        box_1024 = box_np / np.array([W, H, W, H]) * 1024
 
+        box_1024 = bboxs / np.array([W, H, W, H]) * 1024
         sam_mask = medsam_inference(medsam_model, self.embedding, box_1024, H, W)
 
         self.prev_mask = self.mask_c.copy()
@@ -375,7 +284,7 @@ class Window(QWidget):
         # self.scene.removeItem(self.bg_img)
         self.bg_img = self.scene.addPixmap(np2pixmap(np.array(img)))
         self.scene.addRect(
-            box[0], box[1], box[2], box[3], pen=QPen(QColor("red"))
+            box[0], box[1], box[2] - box[0], box[3] - box[1], pen=QPen(QColor("red"))
         )
 
     def mouse_press(self, ev):
