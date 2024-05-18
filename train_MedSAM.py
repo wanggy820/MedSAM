@@ -26,7 +26,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
+    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -56,6 +56,8 @@ def main(opt):
 
     datasets = opt.datasets
     image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
+    # image_list = [image_list[0]]
+    # mask_list = [mask_list[0]]
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'

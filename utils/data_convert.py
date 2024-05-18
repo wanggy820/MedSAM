@@ -38,7 +38,8 @@ def dice_function(pred, target, smooth=1.0):
     return ((2. * intersection + smooth) /
                 (pred_flat.sum() + target_flat.sum() + smooth))
 def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
-    pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
+    pred_mask = pred_mask/255
+    true_mask = true_mask/255
     fl = focal_loss(pred_mask, true_mask)
     dl = dice_loss(pred_mask, true_mask)
     mask_loss = 20 * fl + dl
@@ -49,9 +50,8 @@ def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
 
 
 def mean_iou(preds, labels, eps=1e-6):
-    preds = normalize(threshold(preds, 0.0, 0)).squeeze(1)
-    pred_cls = (preds == 1).float()
-    label_cls = (labels == 1).float()
+    pred_cls = (preds == 255).float()
+    label_cls = (labels == 255).float()
     intersection = (pred_cls * label_cls).sum(1).sum(1)
     union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
     intersection = intersection + (union == 0)
