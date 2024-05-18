@@ -1,12 +1,15 @@
 # 导入了一些库
 import warnings
+warnings.filterwarnings(action='ignore')
+import monai
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
+from MedSAM import MedSAM
 from MyDatasets import MyDatasets
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import build_dataloader, mean_iou, compute_loss, find_u2net_bboxes, getDatasets
+from utils.data_convert import find_u2net_bboxes, getDatasets
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -14,7 +17,7 @@ import os
 import matplotlib.pyplot as plt
 import argparse
 import torch
-from torch import optim
+from torch import optim, nn
 from segment_anything import sam_model_registry
 warnings.filterwarnings(action='ignore')
 
@@ -26,11 +29,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
+    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=500, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=200, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -56,8 +59,8 @@ def main(opt):
 
     datasets = opt.datasets
     image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
-    # image_list = [image_list[0]]
-    # mask_list = [mask_list[0]]
+    image_list = [image_list[0]]
+    mask_list = [mask_list[0]]
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -96,17 +99,24 @@ def main(opt):
         checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
 
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
-
     if opt.pretrained:
         sam.load_state_dict(torch.load('./models/' + opt.pretrained))
         sam = sam.to(device=device)
     else:
         sam = sam.to(device=device)
 
-    optimizer = optim.AdamW(sam.mask_decoder.parameters(),
-                            lr=lr, betas=beta, weight_decay=opt.weight_decay)
+    medsam_model = MedSAM(sam).to(device)
+    medsam_model.train()
 
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
+    img_mask_encdec_params = list(medsam_model.image_encoder.parameters()) + list(
+        medsam_model.mask_decoder.parameters()
+    )
+    optimizer = torch.optim.AdamW(
+        img_mask_encdec_params, lr=lr, weight_decay=opt.weight_decay
+    )
+    seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")
+    # cross entropy loss
+    ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
 
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
     if len(os.listdir(opt.model_path)) == 0:
@@ -127,37 +137,58 @@ def main(opt):
     val_pl_loss_list = []
     val_pl_mi_list = []
 
-    mDatasets = MyDatasets(sam, image_list, mask_list, bboxes, masks, "train")
-    dataloader = DataLoader(mDatasets, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers, pin_memory=False)
+    train_datasets = MyDatasets(image_list, mask_list, bboxes, masks, "train")
+    train_dataloader = DataLoader(train_datasets, batch_size=opt.batch_size,
+                                  shuffle=False, num_workers=opt.num_workers, pin_memory=False)
+
+    test_datasets = MyDatasets(image_list, mask_list, bboxes, masks, "test")
+    test_dataloader = DataLoader(test_datasets, batch_size=opt.batch_size,
+                                 shuffle=False, num_workers=opt.num_workers, pin_memory=False)
+
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
 
         sam.train()
-        iterations = tqdm(dataloader)
-        # 循环进行模型的多轮训练
-        for train_data in iterations:
-            # 将训练数据移到指定设备，这里是GPU
-            train_input = train_data['image'].to(device)
+        iterations = tqdm(train_dataloader)
 
-            train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
-            train_IOU = train_data['iou']
-            # 对优化器的梯度进行归零
+        # 循环进行模型的多轮训练
+        for data in iterations:
+            optimizer.zero_grad()
+            inferencing = data["image_path"]
+            print("inferencing:", inferencing)
+            image = data["image"].to(device)
+            height = data["height"].to(device)
+            width = data["width"].to(device)
+            if "mask" in data:
+                true_mask = data["mask"].to(device)
+            else:
+                true_mask = None
+
+            if "prompt_box" in data:
+                prompt_box = data["prompt_box"].to(device)
+            else:
+                prompt_box = None
+
+            if "prompt_masks" in data:
+                prompt_masks = data["prompt_masks"].to(device)
+            else:
+                prompt_masks = None
+
+            pre_mask, iou = medsam_model(image, prompt_box, prompt_masks, height, width)
+            pre_mask = pre_mask.to(device)
+            iou = iou.to(device)
+            loss = (seg_loss(pre_mask, true_mask) + ce_loss(pre_mask, true_mask.float()))
+
+            loss.requires_grad_(True)
+            loss.backward()
+            optimizer.step()
             optimizer.zero_grad()
 
-            # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(train_input, train_target_mask, eps=1e-6)
-            train_miou_list = train_miou_list + train_true_iou.tolist()
-
-            train_loss_one = compute_loss(train_input, train_target_mask, train_IOU, train_true_iou)
-            train_loss_one.backward()
-
-            optimizer.step()
-
-            train_loss_list.append(train_loss_one.item())
+            train_loss_list.append(loss.item())
+            train_miou_list = train_miou_list + iou.tolist()
             # 学习率调整
             if epoch_add == 0:
-
                 if opt.global_step < opt.warmup_steps:
                     lr_scale = opt.global_step / opt.warmup_steps
                     for param_group in optimizer.param_groups:
@@ -177,24 +208,42 @@ def main(opt):
         tr_pl_loss_list.append(train_loss)
         tr_pl_mi_list.append(train_miou)
 
-        # sam.eval()
-        scheduler.step()
+        medsam_model.eval()
 
         with torch.no_grad():
             valid_loss_list = []
             valid_miou_list = []
 
-            iterations = tqdm(dataloader)
-            for valid_data in iterations:
-                valid_input = valid_data['image'].to(device)
-                valid_target_mask = valid_data['mask'].to(device, dtype=torch.float32)
-                valid_IOU = train_data['iou']
+            iterations = tqdm(test_dataloader)
+            for data in iterations:
+                image = data["image"].to(device)
+                height = data["height"].to(device)
+                width = data["width"].to(device)
+                if "mask" in data:
+                    true_mask = data["mask"].to(device)
+                else:
+                    true_mask = None
 
-                valid_true_iou = mean_iou(valid_input, valid_target_mask, eps=1e-6)
-                valid_miou_list = valid_miou_list + valid_true_iou.tolist()
+                if "prompt_box" in data:
+                    prompt_box = data["prompt_box"].to(device)
+                else:
+                    prompt_box = None
 
-                valid_loss_one = compute_loss(valid_input, valid_target_mask, valid_IOU, valid_true_iou)
-                valid_loss_list.append(valid_loss_one.item())
+                if "prompt_masks" in data:
+                    prompt_masks = data["prompt_masks"].to(device)
+                else:
+                    prompt_masks = None
+
+                pre_mask, iou = medsam_model(image, prompt_box, prompt_masks, height, width)
+                pre_mask = pre_mask.to(device)
+                iou = iou.to(device)
+
+                loss = seg_loss(pre_mask, true_mask) + ce_loss(pre_mask, true_mask.float())
+                loss.requires_grad_(True)
+                loss.backward()
+                valid_miou_list = valid_miou_list + iou.tolist()
+
+                valid_loss_list.append(loss.item())
 
                 pbar_desc = "Model valid loss --- "
                 pbar_desc += f"Total loss: {np.mean(valid_loss_list):.5f}"
@@ -240,7 +289,8 @@ def main(opt):
         lr = optimizer.param_groups[0]["lr"]
 
         if (epoch + 1) % 5 == 0 or (epoch + 1) in [1, 2, 3, 4, 5]:
-            model_path = save_path + "/" +opt.datasets + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(round(lr, 10)) + '.pth'
+            model_path = save_path + "/" + opt.datasets + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
+                round(lr, 10)) + '.pth'
             sam = sam.cpu()
             torch.save(sam.state_dict(), model_path)
             sam = sam.to(device)
