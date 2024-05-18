@@ -33,7 +33,7 @@ def parse_opt():
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=200, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -59,8 +59,8 @@ def main(opt):
 
     datasets = opt.datasets
     image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
-    image_list = [image_list[0]]
-    mask_list = [mask_list[0]]
+    # image_list = [image_list[0]]
+    # mask_list = [mask_list[0]]
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -116,7 +116,7 @@ def main(opt):
     )
     seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")
     # cross entropy loss
-    ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
+    ce_loss = nn.CrossEntropyLoss()
 
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
     if len(os.listdir(opt.model_path)) == 0:
@@ -155,8 +155,8 @@ def main(opt):
         # 循环进行模型的多轮训练
         for data in iterations:
             optimizer.zero_grad()
-            inferencing = data["image_path"]
-            print("inferencing:", inferencing)
+            # inferencing = data["image_path"]
+            # print("inferencing:", inferencing)
             image = data["image"].to(device)
             height = data["height"].to(device)
             width = data["width"].to(device)
@@ -238,7 +238,7 @@ def main(opt):
                 pre_mask = pre_mask.to(device)
                 iou = iou.to(device)
 
-                loss = seg_loss(pre_mask, true_mask) + ce_loss(pre_mask, true_mask.float())
+                loss = seg_loss(pre_mask, true_mask) + ce_loss(pre_mask/255, (true_mask/255).float())
                 loss.requires_grad_(True)
                 loss.backward()
                 valid_miou_list = valid_miou_list + iou.tolist()
