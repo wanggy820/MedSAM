@@ -27,7 +27,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=500, help='train epcoh')
@@ -56,8 +56,6 @@ def main(opt):
 
     datasets = opt.datasets
     image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
-    image_list = [image_list[0]]
-    mask_list = [mask_list[0]]
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -135,35 +133,21 @@ def main(opt):
 
         sam.train()
         iterations = tqdm(dataloader)
-
         # 循环进行模型的多轮训练
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
 
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
+            train_IOU = train_data['iou']
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
-            with torch.no_grad():
-                # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
-                train_encode_feature = sam.image_encoder(train_input)
-                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                     masks=None)
-
-            #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
-            train_mask, train_IOU = sam.mask_decoder(
-                image_embeddings=train_encode_feature,
-                image_pe=sam.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=train_sparse_embeddings,
-                dense_prompt_embeddings=train_dense_embeddings,
-                multimask_output=False)
-
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
+            train_true_iou = mean_iou(train_input, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
-            train_loss_one = compute_loss(train_mask, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(train_input, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
 
             optimizer.step()
@@ -202,21 +186,12 @@ def main(opt):
             for valid_data in iterations:
                 valid_input = valid_data['image'].to(device)
                 valid_target_mask = valid_data['mask'].to(device, dtype=torch.float32)
+                valid_IOU = train_data['iou']
 
-                valid_encode_feature = sam.image_encoder(valid_input)
-                valid_sparse_embeddings, valid_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                     masks=None)
-
-                valid_mask, valid_IOU = sam.mask_decoder(image_embeddings=valid_encode_feature,
-                                                         image_pe=sam.prompt_encoder.get_dense_pe(),
-                                                         sparse_prompt_embeddings=valid_sparse_embeddings,
-                                                         dense_prompt_embeddings=valid_dense_embeddings,
-                                                         multimask_output=False)
-
-                valid_true_iou = mean_iou(valid_mask, valid_target_mask, eps=1e-6)
+                valid_true_iou = mean_iou(valid_input, valid_target_mask, eps=1e-6)
                 valid_miou_list = valid_miou_list + valid_true_iou.tolist()
 
-                valid_loss_one = compute_loss(valid_mask, valid_target_mask, valid_IOU, valid_true_iou)
+                valid_loss_one = compute_loss(valid_input, valid_target_mask, valid_IOU, valid_true_iou)
                 valid_loss_list.append(valid_loss_one.item())
 
                 pbar_desc = "Model valid loss --- "

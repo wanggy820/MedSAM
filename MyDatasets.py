@@ -84,7 +84,7 @@ class MyDatasets(Dataset):
             mask_256 = np.expand_dims(mask_256, axis=0)
             mask_256 = np.expand_dims(mask_256, axis=0)
 
-        sam_mask = self.medsam_inference(embedding, box_1024, mask_256, H, W)
+        sam_mask, iou = self.medsam_inference(embedding, box_1024, mask_256, H, W)
         normalized_data = (sam_mask * 255 / np.max(sam_mask)).astype(np.uint8)
         # cv2.imwrite('tt.png', normalized_data)
         pre_mask = torch.tensor(normalized_data).float()
@@ -94,29 +94,32 @@ class MyDatasets(Dataset):
         data = {
             'image': pre_mask,
             'mask': mask_3c,
+            'iou': iou,
             "image_path": image_path,
         }
         return data
 
     def medsam_inference(self, img_embed, box_1024, mask_1024, height, width):
-        box_torch = None
-        if box_1024 is not None:
-            box_torch = torch.as_tensor(box_1024, dtype=torch.float, device=img_embed.device)
-            if len(box_torch.shape) == 2:
-                box_torch = box_torch[:, None, :]  # (B, 1, 4)
+        # do not compute gradients for prompt encoder
+        with torch.no_grad():
+            box_torch = None
+            if box_1024 is not None:
+                box_torch = torch.as_tensor(box_1024, dtype=torch.float, device=img_embed.device)
+                if len(box_torch.shape) == 2:
+                    box_torch = box_torch[:, None, :]  # (B, 1, 4)
 
-        mask_torch = None
-        if mask_1024 is not None:
-            mask_torch = torch.as_tensor(mask_1024, dtype=torch.float, device=img_embed.device)
-            if len(box_torch.shape) == 2:
-                mask_torch = box_torch[:, None, :]  # (B, 1, 4)
+            mask_torch = None
+            if mask_1024 is not None:
+                mask_torch = torch.as_tensor(mask_1024, dtype=torch.float, device=img_embed.device)
+                if len(box_torch.shape) == 2:
+                    mask_torch = box_torch[:, None, :]  # (B, 1, 4)
 
-        sparse_embeddings, dense_embeddings = self.sam.prompt_encoder(
-            points=None,
-            boxes=box_torch,
-            masks=mask_torch,
-        )
-        low_res_logits, _ = self.sam.mask_decoder(
+            sparse_embeddings, dense_embeddings = self.sam.prompt_encoder(
+                points=None,
+                boxes=box_torch,
+                masks=mask_torch,
+            )
+        low_res_logits, iou = self.sam.mask_decoder(
             image_embeddings=img_embed,  # (B, 256, 64, 64)
             image_pe=self.sam.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
             sparse_prompt_embeddings=sparse_embeddings,  # (B, 2, 256)
@@ -132,6 +135,6 @@ class MyDatasets(Dataset):
             mode="bilinear",
             align_corners=False,
         )  # (1, 1, gt.shape)
-        low_res_pred = low_res_pred.squeeze().cpu().numpy()  # (256, 256)
+        low_res_pred = low_res_pred.squeeze().detach().cpu().numpy()  # (256, 256)
         medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
-        return medsam_seg
+        return medsam_seg, iou
