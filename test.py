@@ -137,16 +137,8 @@ def main():
 
 if __name__ == "__main__":
     # main()
-    B=31
-    G=71
-    x = 120
-    y = 423
-    X = B ** x % G
-    Y = B ** y % G
-    sx = Y**x % G
-    print(sx)
-    sy = X**y % G
-    print(sy)
-    r = (B**(x*y)) % G
 
-    print(r)
+    a = torch.ones([8, 4, 5, 6])
+    b = torch.ones([1, 1, 5, 6])
+    c = a + b
+    print(c)

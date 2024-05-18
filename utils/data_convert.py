@@ -207,7 +207,10 @@ def find_u2net_bboxes(input, image_name):
 
     pred = np.array(imo)
 
-    H, W, _ = image.shape
+    if len(image.shape) == 3:
+        H, W, _ = image.shape
+    else:
+        H, W = image.shape
     y_indices, x_indices = np.where(pred > 0)
     x_min, x_max = np.min(x_indices), np.max(x_indices)
     y_min, y_max = np.min(y_indices), np.max(y_indices)

@@ -42,7 +42,7 @@ def dice_iou_function(pred, target, smooth=1.0):
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--datasets", type=str, default='MICCAI', help="datasets")
+    parser.add_argument("--datasets", type=str, default='Thyroid', help="datasets")
     parser.add_argument("--root_dir", type=str, default='./datasets/', help="root_dir")
     return parser
 
@@ -89,6 +89,7 @@ def main():
     net.eval()
 
     bboxes = []
+    masks = []
     for index, data in enumerate(test_loader):
         with torch.no_grad():
             inferencing = image_list[index]
@@ -99,6 +100,7 @@ def main():
 
             box = find_u2net_bboxes(d1, inferencing)
             bboxes.append(box)
+            # masks.append(d1)
 
     # checkpoint = f"./models/{datasets}_sam_best.pth"
     checkpoint = "work_dir/MedSAM/medsam_vit_b.pth"
@@ -106,7 +108,7 @@ def main():
     medsam_model = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
     medsam_model.eval()
 
-    datasets = MyDatasets(medsam_model, image_list, mask_list, bboxes, data_type="test")
+    datasets = MyDatasets(medsam_model, image_list, mask_list, bboxes, masks, data_type="test")
     medsam_loader = DataLoader(datasets, batch_size=1, shuffle=False, num_workers=0)
 
     # m = build_dataloader(medsam_model, opt.datasets, opt.root_dir, 1, 1, bboxes)

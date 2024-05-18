@@ -1,16 +1,11 @@
 import argparse
-import cv2
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from PIL import Image
 from torchvision.transforms import transforms
-
-from U2_Net.U2netSegDataset import U2netSegDataset
 from U2_Net.data_loader import ToTensorLab, RescaleT
 from U2_Net.data_loader import SalObjDataset
-from U2_Net.model import U2NET # full size version 173.6 MB
-from skimage import io
+from U2_Net.model import U2NET  # full size version 173.6 MB
 from segment_anything import sam_model_registry
 import logging
 from utils.data_convert import compute_sam_dice, getDatasets, find_u2net_bboxes
@@ -24,16 +19,6 @@ torch.manual_seed(2023)
 torch.cuda.empty_cache()
 torch.cuda.manual_seed(2023)
 np.random.seed(2023)
-
-
-colors = [
-    (255, 255, 255),
-]
-
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def dice_iou_function(pred, target, smooth=1.0):
     pred_flat = pred.reshape(-1)

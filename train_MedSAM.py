@@ -1,6 +1,12 @@
 # 导入了一些库
 import warnings
-from utils.data_convert import build_dataloader, mean_iou, compute_loss
+from torch.utils.data import DataLoader
+from torchvision.transforms import transforms
+
+from MyDatasets import MyDatasets
+from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
+from U2_Net.model import U2NET
+from utils.data_convert import build_dataloader, mean_iou, compute_loss, find_u2net_bboxes, getDatasets
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -20,7 +26,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
+    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
     parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -47,6 +53,43 @@ def main(opt):
     print("Loading model...")
     epoch_add = 0
     lr = opt.lr
+
+    datasets = opt.datasets
+    image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
+    image_list = [image_list[0]]
+    mask_list = [mask_list[0]]
+    print("Number of images: ", len(image_list))
+
+    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
+    test_salobj_dataset = SalObjDataset(image_list=image_list,
+                                        mask_list=mask_list,
+                                        transform=transforms.Compose([RescaleT(320),
+                                                                      ToTensorLab(flag=0)])
+                                        )
+    test_loader = DataLoader(test_salobj_dataset, batch_size=1, shuffle=False, num_workers=1)
+
+    # --------- 3. model define ---------
+
+    print("...load U2NET---176.4 MB")
+    net = U2NET(3, 1)
+    net.load_state_dict(torch.load(model_dir, map_location=device))
+    net.to(device)
+    net.eval()
+
+    bboxes = []
+    masks = []
+    for index, data in enumerate(test_loader):
+        with torch.no_grad():
+            inferencing = image_list[index]
+            inputs = data["image"]
+            #####################################  U2Net
+            inputs = inputs.type(torch.FloatTensor).to(device)
+            d1, d2, d3, d4, d5, d6, d7 = net(inputs)
+
+            box = find_u2net_bboxes(d1, inferencing)
+            bboxes.append(box)
+            masks.append(d1)
+
 
     checkpoint = f"./models/{opt.datasets}_sam_best.pth"
     if not os.path.exists(checkpoint):
@@ -84,19 +127,19 @@ def main(opt):
     val_pl_loss_list = []
     val_pl_mi_list = []
 
-    dataloaders = build_dataloader(sam, opt.datasets, opt.data_dir, opt.batch_size, opt.num_workers)
+    mDatasets = MyDatasets(sam, image_list, mask_list, bboxes, masks, "train")
+    dataloader = DataLoader(mDatasets, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers, pin_memory=False)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
 
         sam.train()
-        iterations = tqdm(dataloaders['train'])
+        iterations = tqdm(dataloader)
 
         # 循环进行模型的多轮训练
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
-
 
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
@@ -110,16 +153,12 @@ def main(opt):
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
-
                 image_embeddings=train_encode_feature,
-
                 image_pe=sam.prompt_encoder.get_dense_pe(),
-
                 sparse_prompt_embeddings=train_sparse_embeddings,
-
                 dense_prompt_embeddings=train_dense_embeddings,
-
                 multimask_output=False)
+
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
@@ -159,7 +198,7 @@ def main(opt):
             valid_loss_list = []
             valid_miou_list = []
 
-            iterations = tqdm(dataloaders['test'])
+            iterations = tqdm(dataloader)
             for valid_data in iterations:
                 valid_input = valid_data['image'].to(device)
                 valid_target_mask = valid_data['mask'].to(device, dtype=torch.float32)
@@ -169,13 +208,9 @@ def main(opt):
                                                                                      masks=None)
 
                 valid_mask, valid_IOU = sam.mask_decoder(image_embeddings=valid_encode_feature,
-
                                                          image_pe=sam.prompt_encoder.get_dense_pe(),
-
                                                          sparse_prompt_embeddings=valid_sparse_embeddings,
-
                                                          dense_prompt_embeddings=valid_dense_embeddings,
-
                                                          multimask_output=False)
 
                 valid_true_iou = mean_iou(valid_mask, valid_target_mask, eps=1e-6)
