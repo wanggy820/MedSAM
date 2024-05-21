@@ -178,7 +178,7 @@ def main(opt):
             pre_mask, iou = medsam_model(image, prompt_box, prompt_masks, height, width)
             pre_mask = pre_mask.to(device)
             iou = iou.to(device)
-            loss = (seg_loss(pre_mask, true_mask) + ce_loss(pre_mask, true_mask.float()))
+            loss = (seg_loss(pre_mask, true_mask) + ce_loss(pre_mask/255, (true_mask/255).float()))
 
             loss.requires_grad_(True)
             loss.backward()

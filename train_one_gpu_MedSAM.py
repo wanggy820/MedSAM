@@ -20,7 +20,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='DRIVE', help='model name')
+    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
     parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -120,6 +120,8 @@ def main(opt):
                 dense_prompt_embeddings=train_dense_embeddings,
 
                 multimask_output=False)
+
+            train_mask = train_mask.squeeze(1)
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
