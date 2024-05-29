@@ -140,6 +140,10 @@ def main():
                 prompt_masks = None
 
             pre_mask, _ = medsam_model(image, prompt_box, prompt_masks, height, width)
+
+
+
+
             pre_mask = pre_mask.to(device)
             interaction_iou, interaction_dice = dice_iou_function(pre_mask, true_mask)
 

@@ -122,6 +122,8 @@ def main(opt):
                 multimask_output=False)
 
             train_mask = train_mask.squeeze(1)
+            train_mask = torch.sigmoid(train_mask) > 0.5
+
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
@@ -144,7 +146,7 @@ def main(opt):
 
             pbar_desc = "Model train loss --- "
             pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
-            pbar_desc += f", total mIOU: {np.mean(train_miou_list):.5f}"
+            pbar_desc += f", total mIOU: {train_true_iou.sum()/opt.batch_size:.5f}"
             iterations.set_description(pbar_desc)
 
         train_loss = np.mean(train_loss_list)
@@ -180,6 +182,8 @@ def main(opt):
 
                                                          multimask_output=False)
 
+                valid_mask = valid_mask.squeeze(1)
+                valid_mask = torch.sigmoid(valid_mask) > 0.5
                 valid_true_iou = mean_iou(valid_mask, valid_target_mask, eps=1e-6)
                 valid_miou_list = valid_miou_list + valid_true_iou.tolist()
 
@@ -188,7 +192,7 @@ def main(opt):
 
                 pbar_desc = "Model valid loss --- "
                 pbar_desc += f"Total loss: {np.mean(valid_loss_list):.5f}"
-                pbar_desc += f", total mIOU: {np.mean(valid_miou_list):.5f}"
+                pbar_desc += f", total mIOU: {valid_true_iou.sum()/opt.batch_size:.5f}"
                 iterations.set_description(pbar_desc)
 
             valid_loss = np.mean(valid_loss_list)

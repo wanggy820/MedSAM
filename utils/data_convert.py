@@ -50,8 +50,8 @@ def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
 
 
 def mean_iou(preds, labels, eps=1e-6):
-    pred_cls = (preds == 255).float()
-    label_cls = (labels == 255).float()
+    pred_cls = (preds == 1).float()
+    label_cls = (labels == 1).float()
     intersection = (pred_cls * label_cls).sum(1).sum(1)
     union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
     intersection = intersection + (union == 0)

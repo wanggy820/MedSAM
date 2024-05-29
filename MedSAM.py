@@ -40,9 +40,11 @@ class MedSAM(nn.Module):
             align_corners=False,
         )
         low_res_pred = ori_res_masks.squeeze(1).detach().cpu().numpy()  # (256, 256)
-        medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
-        normalized_data = (medsam_seg * 255 / np.max(medsam_seg)).astype(np.uint8)
-        # cv2.imwrite('tt.png', normalized_data)
-        pre_mask = torch.tensor(normalized_data).float()
-        return pre_mask, iou
+
+        # medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
+        # normalized_data = (medsam_seg * 255 / np.max(medsam_seg)).astype(np.uint8)
+
+        # # cv2.imwrite('tt.png', normalized_data)
+        # pre_mask = torch.tensor(normalized_data).float()
+        return low_res_pred, iou
 

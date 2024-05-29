@@ -341,7 +341,7 @@ class Window(QWidget):
         if self.rect is not None:
             self.scene.removeItem(self.rect)
 
-        bboxs = get_deeplbv3_bbox(self.image_path)
+        bboxs = get_u2net_bbox(self.image_path)
         for j in bboxs:
             self.scene.addRect(
                 j[0], j[1], j[2], j[3], pen=QPen(QColor("red"))
@@ -527,3 +527,6 @@ Swin-UNetr  训练模型
 Swin-UNetr  训练模型
 
 '''
+
+
+# 中间特征可视化  过程
