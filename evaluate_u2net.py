@@ -21,7 +21,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='ISBI', help='model name')
+    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -67,7 +67,7 @@ def main(opt):
     print("Loading model...")
 
     datasets = opt.datasets
-    image_list, mask_list = getDatasets(datasets, opt.data_dir, "test")
+    image_list, mask_list = getDatasets(datasets, opt.data_dir, "val")
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -85,7 +85,7 @@ def main(opt):
     net.load_state_dict(torch.load(model_dir, map_location=device))
     net.to(device)
     net.eval()
-
+    total_dice = 0
     for index, data in enumerate(test_loader):
         with torch.no_grad():
             inferencing = image_list[index]
@@ -95,9 +95,9 @@ def main(opt):
             inputs = inputs.type(torch.FloatTensor).to(device)
             d1, d2, d3, d4, d5, d6, d7 = net(inputs)
             u2net_dice, u2net_iou = dice_iou_function(d1.cpu().numpy(), labels.cpu().numpy())
+            total_dice += u2net_dice
 
-
-            print("u2net_dice:{},u2net_iou:{}".format(u2net_dice, u2net_iou))
+            print("inferencing:{},u2net_dice:{},u2net_iou:{}".format(inferencing, u2net_dice, u2net_iou))
 
             # box = find_u2net_bboxes(d1, inferencing)
             arr = inferencing.split("/")
@@ -111,6 +111,9 @@ def main(opt):
                 index = index + 1
             path = path + "bbox/"
             image_name = arr[len(arr) - 1]
+            if image_name.find("\\"):
+                arr = image_name.split("\\")
+                image_name = arr[len(arr) - 1]
             save_image_name = path + image_name
             if not os.path.exists(path):
                 # 如果文件夹不存在，则创建文件夹
@@ -119,7 +122,7 @@ def main(opt):
             pred = d1[:, 0, :, :]
             pred = normPRED(pred)
             save_output(inferencing, pred, save_image_name)
-
+    print("total_dice:{}".format(total_dice/len(test_loader)))
 
 
 if __name__ == '__main__':

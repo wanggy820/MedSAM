@@ -1,14 +1,15 @@
-
+from skimage import transform
 import cv2
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
 from segment_anything.utils.transforms import ResizeLongestSide
+import random
 
-
-class MedSAM_Dataset(Dataset):
-    def __init__(self, sam, image_list, mask_list):
+class MedSAMBox(Dataset):
+    def __init__(self, sam, image_list, mask_list, bbox_shift=20):
         self.device = sam.device
         self.image_list = image_list
         self.mask_list = mask_list
@@ -17,6 +18,7 @@ class MedSAM_Dataset(Dataset):
         self.preprocess = sam.preprocess
         self.img_size = sam.image_encoder.img_size
         self.resize = transforms.Resize((256, 256))
+        self.bbox_shift = bbox_shift
 
     def __len__(self):
         return len(self.image_list)
@@ -39,25 +41,45 @@ class MedSAM_Dataset(Dataset):
         img = self.preprocess(img.to(device=self.device)) # img nomalize or padding
         #####################################
 
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
-        mask = self.transform.apply_image(mask) # 变换(1024)
+        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        mask = self.transform.apply_image(mask_np) # 变换(1024)
 
         mask = torch.as_tensor(mask) # torch tensor
         mask = mask.unsqueeze(0)
 
-        h, w = mask.shape[-2:]
+        H, W = mask.shape[-2:]
 
-        padh = self.img_size - h
-        padw = self.img_size - w
+        padh = self.img_size - H
+        padw = self.img_size - W
 
         mask = F.pad(mask, (0, padw, 0, padh))
         mask = self.resize(mask).squeeze(0)
         mask = (mask != 0) * 1
 
         #####################################
+        y_indices, x_indices = np.where(mask_np > 0)
+        x_min, x_max = np.min(x_indices), np.max(x_indices)
+        y_min, y_max = np.min(y_indices), np.max(y_indices)
+        x_min = max(0, x_min - random.randint(0, self.bbox_shift))
+        x_max = min(W, x_max + random.randint(0, self.bbox_shift))
+        y_min = max(0, y_min - random.randint(0, self.bbox_shift))
+        y_max = min(H, y_max + random.randint(0, self.bbox_shift))
+        box_np = np.array([x_min, y_min, x_max, y_max])
+
+        #####################################
+        mask_256 = transform.resize(
+            mask_np, (256, 256), order=3, preserve_range=True, anti_aliasing=True
+        ).astype(np.uint8)
+        mask_256 = (mask_256 - mask_256.min()) / np.clip(
+            mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
+        )  # normalize to [0, 1], (H, W, 1)
+        prompt_masks = np.expand_dims(mask_256, axis=0).astype(np.float32)
+
         data = {
             'image': img,
             'mask': mask,
+            "prompt_box": box_np,
+            "prompt_masks": prompt_masks,
         }
         return data
 

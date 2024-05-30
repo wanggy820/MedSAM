@@ -9,6 +9,9 @@ from torch.utils.data import DataLoader
 from torch.nn.functional import threshold, normalize
 from skimage import io
 
+from MedSAM_box import MedSAMBox
+
+
 # 损失函数
 def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
     # pred = F.sigmoid(pred)
@@ -119,7 +122,7 @@ def getDatasets(model_name, root_dir, data_type):
         data_dir = root_dir + "ISBI/"
         if data_type == "train":
             filePath = data_dir + "ISBI2016_ISIC_Part3B_Training_GroundTruth.csv"
-        if data_type == "test":
+        else:
             filePath = data_dir + "ISBI2016_ISIC_Part3B_Test_GroundTruth.csv"
 
         f = open(filePath, encoding="utf-8")
@@ -128,17 +131,26 @@ def getDatasets(model_name, root_dir, data_type):
         mask_list = []
         for img, seg in zip(names["img"], names["seg"]):
             image_list.append(data_dir + img)
-            mask_list.append(data_dir + seg)
+            if data_type == "test":
+                arr = img.split("/")
+                mask_list.append(data_dir + "bbox/" + arr[len(arr) - 1])
+            else:
+                mask_list.append(data_dir + seg)
         return image_list, mask_list
 
     if model_name == "MICCAI":
         if data_type == "train":
             data_dir = root_dir + "MICCAI2023/train/"
-        if data_type == "test":
+        if data_type == "val":
             data_dir = root_dir + "MICCAI2023/val/"
+        if data_type == "test":
+            data_dir = root_dir + "MICCAI2023/"
 
         image_list = sorted(glob.glob(data_dir + "/image/*"))
-        mask_list = sorted(glob.glob(data_dir + "/mask/*"))
+        if data_type == "test":
+            mask_list = sorted(glob.glob(data_dir + "/bbox/*"))
+        else:
+            mask_list = sorted(glob.glob(data_dir + "/mask/*"))
         return image_list, mask_list
 
     if model_name == "Thyroid":
@@ -148,14 +160,17 @@ def getDatasets(model_name, root_dir, data_type):
             data = json.load(fp)
             if data_type == "train":
                 names = data["train"]
-            if data_type == "test":
+            else:
                 names = data["val"]
         format = ".jpg"
         image_list = []
         mask_list = []
         for name in names:
             image_path = data_dir + "Thyroid-image/" + "{:04d}".format(name) + format
-            mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
+            if data_type == "test":
+                mask_path = data_dir + "bbox/" + "{:04d}".format(name) + format
+            else:
+                mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
             image_list.append(image_path)
             mask_list.append(mask_path)
         return image_list, mask_list
@@ -163,10 +178,16 @@ def getDatasets(model_name, root_dir, data_type):
     if model_name == "DRIVE":
         if data_type == "train":
             data_dir = root_dir + "DRIVE/training/"
-        if data_type == "test":
+        if data_type == "val":
             data_dir = root_dir + "DRIVE/test/"
+        if data_type == "test":
+            data_dir = root_dir + "DRIVE/bbox/"
+
         image_list = glob.glob(data_dir + "/images/*")
-        mask_list = glob.glob(data_dir + "/mask/*")
+        if data_type == "test":
+            mask_list = glob.glob(data_dir + "/bbox/*")
+        else:
+            mask_list = glob.glob(data_dir + "/mask/*")
         return image_list, mask_list
 
 # 数据加载
@@ -180,5 +201,19 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
             shuffle=True if key != 'test' else False,
             num_workers=num_workers,
             pin_memory=True
+        )
+    return dataloaders
+
+def build_dataloader_box(sam, model_name, data_dir, batch_size, num_workers):
+    dataloaders = {}
+    for key in ['train', 'val', 'test']:
+        image_list, mask_list = getDatasets(model_name, data_dir, key)
+        datasets = MedSAMBox(sam, image_list, mask_list)
+        dataloaders[key] = DataLoader(
+            datasets,
+            batch_size=batch_size,
+            shuffle=False if key != 'train' else True,
+            num_workers=num_workers,
+            pin_memory=False
         )
     return dataloaders
