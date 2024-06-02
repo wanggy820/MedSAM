@@ -1,5 +1,5 @@
-Experimental Day: 2024-06-02 15:10:24.317700
-mIoU: 0.8161259900272743
+Experimental Day: 2024-06-02 17:14:00.186275
+mIoU: 0.8317563241487398
 epochs:20
 batch_size:2
 learning_rate:1e-05

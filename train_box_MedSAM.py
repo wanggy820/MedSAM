@@ -21,11 +21,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=50, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -114,7 +114,7 @@ def main(opt):
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                      masks=prompt_masks)
                 else:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                          masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU

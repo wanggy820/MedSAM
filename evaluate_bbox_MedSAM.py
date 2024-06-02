@@ -19,6 +19,7 @@ def get_argparser():
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser
 
 def main():
@@ -32,7 +33,11 @@ def main():
         os.mkdir(pre_dataset)
 
     # --------- 3. model define ---------
-    checkpoint = f"./models/{dataset_name}_sam_best.pth"
+    model_path = "./models_box/"
+    if opt.use_box == False:
+        model_path = "./models_no_box/"
+
+    checkpoint = f"./{model_path}{dataset_name}_sam_best.pth"
     # set up model
     sam = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
     sam.eval()
@@ -51,8 +56,13 @@ def main():
             prompt_box = data["prompt_box"].to(device)
             prompt_masks = data["prompt_masks"].to(device)
             test_encode_feature = sam.image_encoder(test_input)
-            test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                 masks=prompt_masks)
+
+            if opt.use_box == True:
+                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                    masks=prompt_masks)
+            else:
+                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                    masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             test_mask, test_IOU = sam.mask_decoder(
