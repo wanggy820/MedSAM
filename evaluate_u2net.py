@@ -6,11 +6,9 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import getDatasets
+from utils.data_convert import getDatasets, normPRED, save_output
 import argparse
 import torch
-from skimage import io
-from PIL import Image
 warnings.filterwarnings(action='ignore')
 
 
@@ -21,7 +19,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='MICCAI', help='model name')
+    parser.add_argument('--datasets', type=str, default='ISBI', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -36,24 +34,7 @@ def dice_iou_function(pred, target, smooth=1.0):
     iou = (intersection + smooth) / (pred_flat.sum() + target_flat.sum() - intersection + smooth)
     return dice, iou
 
-def normPRED(d):
-    ma = torch.max(d)
-    mi = torch.min(d)
 
-    dn = (d-mi)/(ma-mi)
-    # dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
-    return dn
-
-def save_output(image_name,pred,save_image_name):
-
-    predict = pred
-    predict = predict.squeeze()
-    predict_np = predict.cpu().data.numpy()
-
-    im = Image.fromarray(predict_np*255).convert('RGB')
-    image = io.imread(image_name)
-    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
-    imo.save(save_image_name)
 def main(opt):
     if torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -99,7 +80,6 @@ def main(opt):
 
             print("inferencing:{},u2net_dice:{},u2net_iou:{}".format(inferencing, u2net_dice, u2net_iou))
 
-            # box = find_u2net_bboxes(d1, inferencing)
             arr = inferencing.split("/")
             path = ""
             index = 0
@@ -121,7 +101,7 @@ def main(opt):
 
             pred = d1[:, 0, :, :]
             pred = normPRED(pred)
-            save_output(inferencing, pred, save_image_name)
+            save_output(pred, inferencing, save_image_name)
     print("total_dice:{}".format(total_dice/len(test_loader)))
 
 

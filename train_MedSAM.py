@@ -9,7 +9,7 @@ from MedSAM import MedSAM
 from MyDatasets import MyDatasets
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import find_u2net_bboxes, getDatasets
+from utils.data_convert import getDatasets
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -37,7 +37,7 @@ def parse_opt():
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
-    parser.add_argument('--model_path', type=str, default='./models/', help='model path directory')
+    parser.add_argument('--model_path', type=str, default='./models_no_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
 

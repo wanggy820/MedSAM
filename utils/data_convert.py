@@ -8,9 +8,9 @@ from MedSAM_Dataset import MedSAM_Dataset
 from torch.utils.data import DataLoader
 from torch.nn.functional import threshold, normalize
 from skimage import io
-
+from PIL import Image
 from MedSAM_box import MedSAMBox
-
+from torchvision import transforms
 
 # 损失函数
 def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
@@ -117,8 +117,8 @@ def compute_sam_dice(sam, image_path, mask_path, bboxes):
         valid_dice = np.mean(valid_dice_list)
         return valid_loss, valid_miou, valid_dice
 
-def getDatasets(model_name, root_dir, data_type):
-    if model_name == "ISBI":
+def getDatasets(dataset_name, root_dir, data_type):
+    if dataset_name == "ISBI":
         data_dir = root_dir + "ISBI/"
         if data_type == "train":
             filePath = data_dir + "ISBI2016_ISIC_Part3B_Training_GroundTruth.csv"
@@ -138,7 +138,7 @@ def getDatasets(model_name, root_dir, data_type):
                 mask_list.append(data_dir + seg)
         return image_list, mask_list
 
-    if model_name == "MICCAI":
+    if dataset_name == "MICCAI":
         if data_type == "train":
             data_dir = root_dir + "MICCAI2023/train/"
         if data_type == "val":
@@ -153,7 +153,7 @@ def getDatasets(model_name, root_dir, data_type):
             mask_list = sorted(glob.glob(data_dir + "/mask/*"))
         return image_list, mask_list
 
-    if model_name == "Thyroid":
+    if dataset_name == "Thyroid":
         data_dir = root_dir + "Thyroid_Dataset/tg3k/"
 
         with open(data_dir + "tg3k-trainval.json", 'r', encoding='utf-8') as fp:
@@ -175,7 +175,7 @@ def getDatasets(model_name, root_dir, data_type):
             mask_list.append(mask_path)
         return image_list, mask_list
 
-    if model_name == "DRIVE":
+    if dataset_name == "DRIVE":
         if data_type == "train":
             data_dir = root_dir + "DRIVE/training/"
         if data_type == "val":
@@ -204,10 +204,10 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
         )
     return dataloaders
 
-def build_dataloader_box(sam, model_name, data_dir, batch_size, num_workers):
+def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
-        image_list, mask_list = getDatasets(model_name, data_dir, key)
+        image_list, mask_list = getDatasets(dataset_name, data_dir, key)
         datasets = MedSAMBox(sam, image_list, mask_list)
         dataloaders[key] = DataLoader(
             datasets,
@@ -217,3 +217,51 @@ def build_dataloader_box(sam, model_name, data_dir, batch_size, num_workers):
             pin_memory=False
         )
     return dataloaders
+
+
+def normPRED(d):
+    ma = torch.max(d)
+    mi = torch.min(d)
+
+    dn = (d-mi)/(ma-mi)
+    # dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
+    return dn
+
+def save_output(predict, origin_image_name, save_image_name):
+    predict = predict.squeeze()
+    predict_np = predict.cpu().data.numpy()
+
+    im = Image.fromarray(predict_np*255).convert('L')
+    image = io.imread(origin_image_name)
+    imo = im.resize((image.shape[1],image.shape[0]), resample=Image.BILINEAR)
+    imo.save(save_image_name)
+
+# 定义转换管道
+transform = transforms.Compose([
+    transforms.ToTensor(), # 转换为Tensor
+])
+def calculate_dice_iou(pred_path, mask_path, smooth = 1e-5):
+    pre_img = Image.open(pred_path)
+    pred = transform(pre_img)
+
+    mask_img = Image.open(mask_path)
+    mask = transform(mask_img)
+    # 确保pred和target的大小一致
+    assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
+
+    # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
+    pred_positives = (pred == 1)
+    mask_positives = (mask == 1)
+
+    # 计算交集
+    intersection = (pred_positives * mask_positives).sum()
+
+    # 计算并集
+    union = (pred_positives + mask_positives).sum()
+
+    dice = (2 * intersection + smooth) / (union + intersection + smooth)
+    # 计算IoU
+    iou = (intersection + smooth) / (union + smooth)  # 添加1e-6以避免除以零
+
+
+    return dice, iou

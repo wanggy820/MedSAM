@@ -21,18 +21,18 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name', type=str, default='MICCAI', help='model name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
-    parser.add_argument('--warmup_steps', type=int, default=250, help=' ')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
+    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
-    parser.add_argument('--model_path', type=str, default='./models/', help='model path directory')
+    parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
-
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser.parse_known_args()[0]
 
 
@@ -50,7 +50,9 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    checkpoint = f"./models/{opt.model_name}_sam_best.pth"  # './work_dir/SAM/sam_vit_b_01ec64.pth'
+    checkpoint = f"./models/{opt.dataset_name}_sam_best.pth"
+    if not os.path.exists(checkpoint):
+        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
 
     if opt.pretrained:
@@ -64,14 +66,17 @@ def main(opt):
 
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
+    model_path = "./models_box/"
+    if opt.use_box == False:
+        model_path = "./models_no_box/"
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
-    if len(os.listdir(opt.model_path)) == 0:
-        save_path = os.path.join(opt.model_path, f"{opt.model_name}_model_{opt.epochs}_{opt.batch_size}_0")
+    if len(os.listdir(model_path)) == 0:
+        save_path = os.path.join(model_path, f"{opt.dataset_name}_model_{opt.epochs}_{opt.batch_size}_0")
         os.makedirs(save_path)
     else:
-        save_path = os.path.join(opt.model_path,
-                                 f"{opt.model_name}_model_{opt.epochs}_{opt.batch_size}_" + str(
-                                     len(os.listdir(opt.model_path))))
+        save_path = os.path.join(model_path,
+                                 f"{opt.dataset_name}_model_{opt.epochs}_{opt.batch_size}_" + str(
+                                     len(os.listdir(model_path))))
         os.makedirs(save_path)
 
     print('Training Start')
@@ -81,10 +86,8 @@ def main(opt):
 
     tr_pl_loss_list = []
     tr_pl_mi_list = []
-    val_pl_loss_list = []
-    val_pl_mi_list = []
 
-    dataloaders = build_dataloader_box(sam, opt.model_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
@@ -107,8 +110,12 @@ def main(opt):
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 train_encode_feature = sam.image_encoder(train_input)
-                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                if opt.use_box == True:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                      masks=prompt_masks)
+                else:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                         masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
@@ -151,50 +158,15 @@ def main(opt):
         # sam.eval()
         scheduler.step()
 
-        with torch.no_grad():
-            valid_loss_list = []
-            valid_miou_list = []
-
-            iterations = tqdm(dataloaders['val'])
-            for valid_data in iterations:
-                valid_input = valid_data['image'].to(device)
-                valid_target_mask = valid_data['mask'].to(device, dtype=torch.float32)
-
-                valid_encode_feature = sam.image_encoder(valid_input)
-                valid_sparse_embeddings, valid_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                     masks=None)
-
-                valid_mask, valid_IOU = sam.mask_decoder(image_embeddings=valid_encode_feature,
-                                                         image_pe=sam.prompt_encoder.get_dense_pe(),
-                                                         sparse_prompt_embeddings=valid_sparse_embeddings,
-                                                         dense_prompt_embeddings=valid_dense_embeddings,
-                                                         multimask_output=False)
-
-                valid_true_iou = mean_iou(valid_mask, valid_target_mask, eps=1e-6)
-                valid_miou_list = valid_miou_list + valid_true_iou.tolist()
-
-                valid_loss_one = compute_loss(valid_mask, valid_target_mask, valid_IOU, valid_true_iou)
-                valid_loss_list.append(valid_loss_one.item())
-
-                pbar_desc = "Model valid loss --- "
-                pbar_desc += f"Total loss: {np.mean(valid_loss_list):.5f}"
-                pbar_desc += f", total mIOU: {np.mean(valid_miou_list):.5f}"
-                iterations.set_description(pbar_desc)
-
-            valid_loss = np.mean(valid_loss_list)
-            valid_miou = np.mean(valid_miou_list)
-            val_pl_loss_list.append(valid_loss)
-            val_pl_mi_list.append(valid_miou)
-
-        model_path = opt.model_path + opt.model_name + '_sam.pth'
+        model_path = model_path + opt.dataset_name + '_sam.pth'
         sam = sam.cpu()
         torch.save(sam.state_dict(), model_path)
         sam = sam.to(device)
 
-        if best_mIOU < valid_miou:
-            best_loss = valid_loss
-            best_mIOU = valid_miou
-            model_path = save_path + f'/{opt.model_name}_sam_best.pth'
+        if best_mIOU < train_miou:
+            best_loss = train_loss
+            best_mIOU = train_miou
+            model_path = save_path + f'/{opt.dataset_name}_sam_best.pth'
             sam = sam.cpu()
             torch.save(sam.state_dict(), model_path)
             sam = sam.to(device)
@@ -212,19 +184,13 @@ def main(opt):
             f.write(f"Data_set : {opt.data_dir}")
             f.close()
 
-        print("epoch : {:3d}, train loss : {:3.4f}, valid loss : {:3.4f}, valid mIOU : {:3.4f}\
-            ( best vaild loss : {:3.4f}, best valid mIOU : {:3.4f} )".format(epoch + 1 + epoch_add,
-                                                                             train_loss,
-                                                                             valid_loss,
-                                                                             valid_miou,
-                                                                             best_loss,
-                                                                             best_mIOU
-                                                                             ))
+        print("epoch : {:3d}, train loss : {:3.4f}, train mIOU : {:3.4f}, best loss : {:3.4f}, best mIOU : {:3.4f})"
+              .format(epoch + 1 + epoch_add, train_loss, train_miou, best_loss, best_mIOU))
 
         lr = optimizer.param_groups[0]["lr"]
 
         if (epoch + 1) % 5 == 0 or (epoch + 1) in [1, 2, 3, 4, 5]:
-            model_path = save_path + "/" + opt.model_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
+            model_path = save_path + "/" + opt.dataset_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
                 round(lr, 10)) + '.pth'
             sam = sam.cpu()
             torch.save(sam.state_dict(), model_path)
@@ -233,9 +199,7 @@ def main(opt):
     # (2, 2) 形式的图使用matplotlib可视化训练进展，生成用于训练和验证平均IOU、训练和验证损失的图表。
     plt_dict = {
         "Train_mIoU": tr_pl_mi_list,
-        "Val_mIoU": val_pl_mi_list,
         "Train_Loss": tr_pl_loss_list,
-        "Val_Loss": val_pl_loss_list
     }
 
     plt.figure(figsize=(15, 15))
@@ -247,7 +211,7 @@ def main(opt):
         plt.ylabel(f'{key.split("_")[-1]}', fontsize=15)
         plt.grid(True)
 
-    plt.savefig(save_path + f'/{opt.model_name}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
+    plt.savefig(save_path + f'/{opt.dataset_name}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
 
 
 if __name__ == '__main__':

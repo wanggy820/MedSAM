@@ -80,6 +80,8 @@ class MedSAMBox(Dataset):
             'mask': mask,
             "prompt_box": box_np,
             "prompt_masks": prompt_masks,
+            "image_path": image_path,
+            "mask_path": mask_path,
         }
         return data
 
