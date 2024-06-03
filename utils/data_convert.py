@@ -227,14 +227,14 @@ def normPRED(d):
     # dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
     return dn
 
-def save_output(predict, origin_image_name, save_image_name):
+def save_output(predict, save_image_name):
     predict = predict.squeeze()
     predict_np = predict.cpu().data.numpy()
 
     im = Image.fromarray(predict_np*255).convert('L')
-    image = io.imread(origin_image_name)
-    imo = im.resize((image.shape[1],image.shape[0]), resample=Image.BILINEAR)
-    imo.save(save_image_name)
+    # image = io.imread(origin_image_name)
+    # imo = im.resize((image.shape[1],image.shape[0]), resample=Image.BILINEAR)
+    im.save(save_image_name)
 
 # 定义转换管道
 transform = transforms.Compose([
@@ -262,6 +262,4 @@ def calculate_dice_iou(pred_path, mask_path, smooth = 1e-5):
     dice = (2 * intersection + smooth) / (union + intersection + smooth)
     # 计算IoU
     iou = (intersection + smooth) / (union + smooth)  # 添加1e-6以避免除以零
-
-
     return dice, iou

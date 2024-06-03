@@ -1,4 +1,6 @@
 import argparse
+
+import cv2
 import torch
 import os
 from segment_anything import sam_model_registry
@@ -6,28 +8,30 @@ import logging
 from utils.data_convert import build_dataloader_box, save_output, calculate_dice_iou
 from torch.nn.functional import threshold, normalize
 
-
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='ISBI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser
 
+
 def main():
     opt = get_argparser().parse_args()
 
     dataset_name = opt.dataset_name
 
-    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', filemode="w", encoding='utf-8',
+                        level=logging.DEBUG)
     pre_dataset = "./pre_" + dataset_name + "/"
     if not os.path.exists(pre_dataset):
         os.mkdir(pre_dataset)
@@ -73,7 +77,7 @@ def main():
                 multimask_output=False)
 
             ##################################### MEDSAM
-            for iPath, mPath in zip(image_path, mask_path):
+            for iPath, mPath, box in zip(image_path, mask_path, prompt_box):
                 arr = iPath.split("/")
                 image_name = arr[len(arr) - 1]
                 if image_name.find("\\"):
@@ -81,20 +85,27 @@ def main():
                     image_name = arr[len(arr) - 1]
                 save_image_name = pre_dataset + image_name
 
-                preds = normalize(threshold(test_mask, 0.0, 0)).squeeze(1)
-                save_output(preds, iPath, save_image_name)
+                input_size = tuple(test_input.shape[-2:])
+                mask_np = cv2.imread(mPath, cv2.IMREAD_GRAYSCALE)
+                original_size = tuple(mask_np.shape[-2:])
+                masks = sam.postprocess_masks(
+                    test_mask, input_size
+                )
+                preds = (masks > sam.mask_threshold).int()
+
+                # preds = normalize(threshold(test_mask, 0.0, 0)).squeeze(1)
+                save_output(preds, save_image_name)
                 dice, iou = calculate_dice_iou(save_image_name, mPath)
                 interaction_total_dice += dice
                 interaction_total_iou += iou
                 print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
-                             .format(iou, dice))
+                      .format(iou, dice))
                 print("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
                       .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
                 logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
                              .format(iou, dice))
                 logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
                              .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
-
 
 
 if __name__ == "__main__":
