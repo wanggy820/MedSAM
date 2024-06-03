@@ -181,7 +181,7 @@ def main(opt):
             f.write("\n")
             f.write(f"learning_rate:{opt.lr}")
             f.write("\n")
-            f.write(f"Data_set : {opt.data_dir}")
+            f.write(f"Data_set : {opt.dataset_name}")
             f.close()
 
         print("epoch : {:3d}, train loss : {:3.4f}, train mIOU : {:3.4f}, best loss : {:3.4f}, best mIOU : {:3.4f})"
