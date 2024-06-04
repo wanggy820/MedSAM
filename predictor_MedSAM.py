@@ -38,7 +38,7 @@ def get_argparser():
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     parser.add_argument("--image_path", type=str, default='./datasets/MICCAI2023/val/image/a-900.png',
                         help="image path")
     parser.add_argument("--mask_path", type=str, default='./datasets/MICCAI2023/val/mask/a-900.png', help="mask path")

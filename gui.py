@@ -58,6 +58,7 @@ np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
 MedSAM_CKPT_PATH = "work_dir/MedSAM/medsam_vit_b.pth"
+MedSAM_CKPT_PATH = "models_box/MICCAI_sam_best.pth"
 MEDSAM_IMG_INPUT_SIZE = 1024
 
 if torch.backends.mps.is_available():
@@ -209,7 +210,7 @@ def find_u2net_bboxes(input, image_name):
     return np.array(boxes)
 
 def get_u2net_bbox(img_path):
-    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_Thyroid.pth"
+    model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_MICCAI.pth"
     img_name_list = [img_path]
     test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
                                         lbl_name_list = [],
