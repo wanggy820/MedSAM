@@ -5,9 +5,7 @@ import torch
 import os
 from matplotlib import pyplot as plt
 from segment_anything import sam_model_registry, SamPredictor
-import logging
 from skimage import transform
-import torch.nn.functional as F
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -15,6 +13,7 @@ else:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 image_size = 1024
 bbox_shift = 20
+
 
 def show_mask(mask, ax, random_color=False):
     if random_color:
@@ -31,6 +30,7 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
 
+
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
@@ -39,9 +39,11 @@ def get_argparser():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=True, help='is use box')
-    parser.add_argument("--image_path", type=str, default='./datasets/MICCAI2023/val/image/a-902.png', help="image path")
-    parser.add_argument("--mask_path", type=str, default='./datasets/MICCAI2023/val/mask/a-902.png', help="mask path")
+    parser.add_argument("--image_path", type=str, default='./datasets/MICCAI2023/val/image/a-900.png',
+                        help="image path")
+    parser.add_argument("--mask_path", type=str, default='./datasets/MICCAI2023/val/mask/a-900.png', help="mask path")
     return parser
+
 
 def box(image):
     H, W = image.shape[-2:]
@@ -55,12 +57,12 @@ def box(image):
     box_np = np.array([x_min, y_min, x_max, y_max])
     return box_np
 
+
 def main():
     opt = get_argparser().parse_args()
 
     dataset_name = opt.dataset_name
 
-    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
     pre_dataset = "./pre_" + dataset_name + "/"
     if not os.path.exists(pre_dataset):
         os.mkdir(pre_dataset)
@@ -94,22 +96,24 @@ def main():
     prompt_box = box(mask_1024)
     ############################ prompt_mask
 
-    mask_256 = transform.resize(
-        mask_1024, (256, 256), order=0, preserve_range=True, anti_aliasing=True
-    ).astype(np.uint8)
-    mask_256 = (mask_256 - mask_256.min()) / np.clip(
-        mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
-    )  # normalize to [0, 1], (H, W, 1)
-    prompt_masks = np.expand_dims(mask_256, axis=0).astype(np.float32)
-
-    sam_mask, scores, logit = predictor.predict(point_coords=None, point_labels=None, box=prompt_box, mask_input=prompt_masks,
-                                       multimask_output=False)  # 1024x1024, bool
+    if opt.use_box:
+        mask_256 = transform.resize(
+            mask_1024, (256, 256), order=0, preserve_range=True, anti_aliasing=True
+        ).astype(np.uint8)
+        mask_256 = (mask_256 - mask_256.min()) / np.clip(
+            mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
+        )  # normalize to [0, 1], (H, W, 1)
+        prompt_masks = np.expand_dims(mask_256, axis=0).astype(np.float32)
+    else:
+        prompt_masks = None
+    sam_mask, scores, logit = predictor.predict(point_coords=None, point_labels=None, box=prompt_box,
+                                                mask_input=prompt_masks,
+                                                multimask_output=False)  # 1024x1024, bool
 
     sam_origin = transform.resize(sam_mask[0].astype(np.uint8), (mask_np.shape[-2], mask_np.shape[-1]), order=0,
-                                preserve_range=True, mode='constant', anti_aliasing=False)  # (256, 256)
+                                  preserve_range=True, mode='constant', anti_aliasing=False)  # (256, 256)
     # segs = np.zeros_like(mask_np, dtype=np.uint8)
     # segs[sam_origin == True] = 1
-
 
     plt.figure(figsize=(10, 10))
     plt.imshow(image)
@@ -119,8 +123,6 @@ def main():
 
     plt.axis('off')
     plt.show()
-
-
 
 
 if __name__ == "__main__":
