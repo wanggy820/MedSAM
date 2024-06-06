@@ -18,6 +18,8 @@ from segment_anything import sam_model_registry
 from torch.nn import functional as F
 import logging
 
+from utils.data_convert import getDatasets
+
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
@@ -29,7 +31,7 @@ torch.cuda.manual_seed(2023)
 np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
-MedSAM_CKPT_PATH = "./models/Thyroid_model_20_4_4/Thyroid_sam_best.pth"
+MedSAM_CKPT_PATH = "./models_no_box/MICCAI_model_2_2_4/MICCAI_sam_best.pth"
 MEDSAM_IMG_INPUT_SIZE = 1024
 prediction_dir = './val/predict_u2net_results'
 interaction_dir = './val/interaction_u2net_results'
@@ -224,27 +226,25 @@ def interaction_u2net_predict(bboxes, file_path, save_dir):
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    # model Options
-    parser.add_argument("--model_name", type=str, default='Thyroid',
-                        help="model_name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
+    parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
+    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
 
 def main():
-    opts = get_argparser().parse_args()
+    opt = get_argparser().parse_args()
     create_clear_dir(prediction_dir)
     create_clear_dir(interaction_dir)
 
-    image_dir = './val'
-    img_name_list = glob.glob(image_dir + '/image/*')
-    img_name_list = sorted(img_name_list)
-    lbl_name_list = glob.glob(image_dir + '/mask/*')
-    lbl_name_list = sorted(lbl_name_list)
+    img_name_list, lbl_name_list = getDatasets(opt.dataset_name, opt.data_dir, "val")
     print("Number of images: ", len(img_name_list))
 
-    model_name = opts.model_name
-    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + model_name + '.pth'
+    dataset_name = opt.dataset_name
+    model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + dataset_name + '.pth'
 
-    logging.basicConfig(filename="./val/" + model_name + '_val' + '.log', encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', encoding='utf-8', level=logging.DEBUG)
     # --------- 2. dataloader ---------
     #1. dataloader
     test_salobj_dataset = SalObjDataset(img_name_list=img_name_list,

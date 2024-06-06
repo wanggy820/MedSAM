@@ -1,18 +1,15 @@
 import argparse
-
 import cv2
 import torch
 import os
 from segment_anything import sam_model_registry
 import logging
-from utils.data_convert import build_dataloader_box, save_output, calculate_dice_iou
-from torch.nn.functional import threshold, normalize
+from utils.data_convert import build_dataloader_box, calculate_dice_iou
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 
 def get_argparser():
     parser = argparse.ArgumentParser()
@@ -61,7 +58,7 @@ def main():
             prompt_masks = data["prompt_masks"].to(device)
             test_encode_feature = sam.image_encoder(test_input)
 
-            if opt.use_box == True:
+            if opt.use_box:
                 test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                     masks=prompt_masks)
             else:

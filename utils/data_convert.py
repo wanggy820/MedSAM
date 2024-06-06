@@ -62,61 +62,6 @@ def mean_iou(preds, labels, eps=1e-6):
 
     return ious
 
-
-def compute_sam_dice(sam, image_path, mask_path, bboxes):
-    img_np = io.imread(image_path)
-    if len(img_np.shape) == 2:
-        img_3c = np.repeat(img_np[:, :, None], 3, axis=-1)
-    else:
-        img_3c = img_np
-    H, W, _ = img_3c.shape
-    box_1024 = bboxes / np.array([W, H, W, H]) * 1024
-
-    box_torch = torch.as_tensor(box_1024, dtype=torch.float, device=sam.device)
-
-    datasets = MedSAM_Dataset(sam, [image_path], [mask_path])
-    dataloaders = DataLoader(datasets, batch_size=1, shuffle=False,  num_workers=0, pin_memory=True)
-    torch.cuda.empty_cache()
-
-    sam.eval()
-    with torch.no_grad():
-        valid_loss_list = []
-        valid_miou_list = []
-        valid_dice_list = []
-
-        for valid_data in dataloaders:
-            img, mask = valid_data["image"], valid_data["mask"]
-            valid_input = img.to(sam.device)
-            valid_target_mask = mask.to(sam.device, dtype=torch.float32)
-
-            valid_encode_feature = sam.image_encoder(valid_input)
-            valid_sparse_embeddings, valid_dense_embeddings = sam.prompt_encoder(points=None, boxes=box_torch,
-                                                                                 masks=None)
-
-            valid_mask, valid_IOU = sam.mask_decoder(image_embeddings=valid_encode_feature,
-
-                                                     image_pe=sam.prompt_encoder.get_dense_pe(),
-
-                                                     sparse_prompt_embeddings=valid_sparse_embeddings,
-
-                                                     dense_prompt_embeddings=valid_dense_embeddings,
-
-                                                     multimask_output=False)
-
-            valid_true_iou = mean_iou(valid_mask, valid_target_mask, eps=1e-6)
-            valid_miou_list = valid_miou_list + valid_true_iou.tolist()
-
-            valid_loss_one = compute_loss(valid_mask, valid_target_mask, valid_IOU, valid_true_iou)
-            valid_loss_list.append(valid_loss_one.item())
-
-            valid_dice_one = dice_function(valid_mask, valid_target_mask)
-            valid_dice_list.append(valid_dice_one.item())
-
-        valid_loss = np.mean(valid_loss_list)
-        valid_miou = np.mean(valid_miou_list)
-        valid_dice = np.mean(valid_dice_list)
-        return valid_loss, valid_miou, valid_dice
-
 def getDatasets(dataset_name, root_dir, data_type):
     if dataset_name == "ISBI":
         data_dir = root_dir + "ISBI/"
@@ -217,24 +162,6 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
             pin_memory=False
         )
     return dataloaders
-
-
-def normPRED(d):
-    ma = torch.max(d)
-    mi = torch.min(d)
-
-    dn = (d-mi)/(ma-mi)
-    # dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
-    return dn
-
-def save_output(predict, save_image_name):
-    predict = predict.squeeze()
-    predict_np = predict.cpu().data.numpy()
-
-    im = Image.fromarray(predict_np*255).convert('L')
-    # image = io.imread(origin_image_name)
-    # imo = im.resize((image.shape[1],image.shape[0]), resample=Image.BILINEAR)
-    im.save(save_image_name)
 
 # 定义转换管道
 transform = transforms.Compose([

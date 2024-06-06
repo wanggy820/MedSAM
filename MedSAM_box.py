@@ -62,7 +62,9 @@ class MedSAMBox(Dataset):
         y_min = max(0, y_min - random.randint(0, self.bbox_shift))
         y_max = min(H, y_max + random.randint(0, self.bbox_shift))
         box_np = np.array([x_min, y_min, x_max, y_max])
-
+        H, W = mask_np.shape[-2:]
+        box_1024 = box_np / np.array([W, H, W, H]) * 1024
+        box_1024 = box_1024.astype(np.int16)
         #####################################
         mask_256 = transform.resize(
             mask_np, (256, 256), order=3, preserve_range=True, anti_aliasing=True
@@ -75,7 +77,7 @@ class MedSAMBox(Dataset):
         data = {
             'image': img,
             'mask': mask,
-            "prompt_box": box_np,
+            "prompt_box": box_1024,
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,

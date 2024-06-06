@@ -25,15 +25,13 @@ def parse_opt():
     parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=50, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=2, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
-    return parser.parse_known_args()[0]
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
 
 
 def main(opt):
@@ -51,27 +49,19 @@ def main(opt):
     lr = opt.lr
 
     model_path = "./models_box/"
-    if opt.use_box == False:
+    if not opt.use_box:
         model_path = "./models_no_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
         checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
-
-    if opt.pretrained:
-        sam.load_state_dict(torch.load('./models/' + opt.pretrained))
-        sam = sam.to(device=device)
-    else:
-        sam = sam.to(device=device)
+    sam = sam.to(device=device)
 
     optimizer = optim.AdamW(sam.mask_decoder.parameters(),
                             lr=lr, betas=beta, weight_decay=opt.weight_decay)
 
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
-    model_path = "./models_box/"
-    if opt.use_box == False:
-        model_path = "./models_no_box/"
     # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
     if len(os.listdir(model_path)) == 0:
         save_path = os.path.join(model_path, f"{opt.dataset_name}_model_{opt.epochs}_{opt.batch_size}_0")
