@@ -4,7 +4,6 @@ import os
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from torch.autograd import Variable
-from DeepLabV3Plus import utils
 import sys
 import time
 
@@ -47,7 +46,6 @@ from U2_Net.data_loader import RescaleT, ToTensorLab, SalObjDataset
 from U2_Net.model import U2NET
 from segment_anything import sam_model_registry
 import cv2
-from DeepLabV3Plus import network
 from torchvision import transforms as T
 
 # freeze seeds
@@ -132,35 +130,6 @@ colors = [
     (255, 255, 255),
 ]
 
-def find_bbox(mask):
-    _, labels, stats, centroids = cv2.connectedComponentsWithStats(mask.astype(np.uint8))
-    stats = stats[stats[:,4].argsort()]
-    return stats[:-1]
-def get_deeplbv3_bbox(img_path):
-    num_classes = 2
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = network.modeling.__dict__['deeplabv3plus_mobilenet'](num_classes=num_classes, output_stride=16)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
-    checkpoint = torch.load("DeepLabV3Plus/result/model.pt", map_location=torch.device('cpu'))
-    model.load_state_dict(checkpoint)
-    model = nn.DataParallel(model)
-    model.to(device)
-    transform = T.Compose([
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225]),
-    ])
-    with torch.no_grad():
-        model = model.eval()
-        img = Image.open(img_path).convert('RGB')
-        img = transform(img).unsqueeze(0)  # To tensor of NCHW
-        img = img.to(device)
-        pre = model(img)
-        mask = pre.max(1)[1].cpu().numpy()[0]  # HW
-        bboxs = find_bbox(mask)
-        return bboxs
-
 def normPRED(d):
     ma = torch.max(d)
     mi = torch.min(d)
@@ -184,7 +153,7 @@ def find_u2net_bboxes(input, image_name):
 
     pred = np.array(imo)
 
-    imo.save("33.png")
+    # imo.save("33.png")
     masks = np.expand_dims(pred, axis=0)
     boxes = []
     maxw = maxh = 0
@@ -433,7 +402,7 @@ class Window(QWidget):
         if self.rect is not None:
             self.scene.removeItem(self.rect)
 
-        bboxs = get_deeplbv3_bbox(self.image_path)
+        bboxs = get_u2net_bbox(self.image_path)
         for j in bboxs:
             self.scene.addRect(
                 j[0], j[1], j[2], j[3], pen=QPen(QColor("red"))
