@@ -22,7 +22,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=50, help='train epcoh')
@@ -32,7 +32,7 @@ def parse_opt():
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--pretrained', type=str, default=False, help='pre trained model select')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser.parse_known_args()[0]
 
 
@@ -50,7 +50,10 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    checkpoint = f"./models/{opt.dataset_name}_sam_best.pth"
+    model_path = "./models_box/"
+    if opt.use_box == False:
+        model_path = "./models_no_box/"
+    checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
         checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
     sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
@@ -96,57 +99,57 @@ def main(opt):
         iterations = tqdm(dataloaders['train'])
 
         # 循环进行模型的多轮训练
-        # for train_data in iterations:
-        #     # 将训练数据移到指定设备，这里是GPU
-        #     train_input = train_data['image'].to(device)
-        #
-        #     train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
-        #
-        #     prompt_box = train_data["prompt_box"].to(device)
-        #     prompt_masks = train_data["prompt_masks"].to(device)
-        #     # 对优化器的梯度进行归零
-        #     optimizer.zero_grad()
-        #
-        #     with torch.no_grad():
-        #         # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
-        #         train_encode_feature = sam.image_encoder(train_input)
-        #         if opt.use_box == True:
-        #             train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-        #                                                                              masks=prompt_masks)
-        #         else:
-        #             train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-        #                                                                                  masks=None)
-        #
-        #     #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
-        #     train_mask, train_IOU = sam.mask_decoder(
-        #         image_embeddings=train_encode_feature,
-        #         image_pe=sam.prompt_encoder.get_dense_pe(),
-        #         sparse_prompt_embeddings=train_sparse_embeddings,
-        #         dense_prompt_embeddings=train_dense_embeddings,
-        #         multimask_output=False)
-        #
-        #     # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-        #     train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
-        #     train_miou_list = train_miou_list + train_true_iou.tolist()
-        #
-        #     train_loss_one = compute_loss(train_mask, train_target_mask, train_IOU, train_true_iou)
-        #     train_loss_one.backward()
-        #
-        #     optimizer.step()
-        #
-        #     train_loss_list.append(train_loss_one.item())
-        #     # 学习率调整
-        #     if epoch_add == 0:
-        #         if opt.global_step < opt.warmup_steps:
-        #             lr_scale = opt.global_step / opt.warmup_steps
-        #             for param_group in optimizer.param_groups:
-        #                 param_group['lr'] = 8e-4 * lr_scale
-        #         opt.global_step += 1
-        #
-        #     pbar_desc = "Model train loss --- "
-        #     pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
-        #     pbar_desc += f", total mIOU: {np.mean(train_miou_list):.5f}"
-        #     iterations.set_description(pbar_desc)
+        for train_data in iterations:
+            # 将训练数据移到指定设备，这里是GPU
+            train_input = train_data['image'].to(device)
+
+            train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
+
+            prompt_box = train_data["prompt_box"].to(device)
+            prompt_masks = train_data["prompt_masks"].to(device)
+            # 对优化器的梯度进行归零
+            optimizer.zero_grad()
+
+            with torch.no_grad():
+                # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
+                train_encode_feature = sam.image_encoder(train_input)
+                if opt.use_box == True:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                     masks=prompt_masks)
+                else:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                         masks=None)
+
+            #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
+            train_mask, train_IOU = sam.mask_decoder(
+                image_embeddings=train_encode_feature,
+                image_pe=sam.prompt_encoder.get_dense_pe(),
+                sparse_prompt_embeddings=train_sparse_embeddings,
+                dense_prompt_embeddings=train_dense_embeddings,
+                multimask_output=False)
+
+            # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
+            train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
+            train_miou_list = train_miou_list + train_true_iou.tolist()
+
+            train_loss_one = compute_loss(train_mask, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one.backward()
+
+            optimizer.step()
+
+            train_loss_list.append(train_loss_one.item())
+            # 学习率调整
+            if epoch_add == 0:
+                if opt.global_step < opt.warmup_steps:
+                    lr_scale = opt.global_step / opt.warmup_steps
+                    for param_group in optimizer.param_groups:
+                        param_group['lr'] = 8e-4 * lr_scale
+                opt.global_step += 1
+
+            pbar_desc = "Model train loss --- "
+            pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
+            pbar_desc += f", total mIOU: {np.mean(train_miou_list):.5f}"
+            iterations.set_description(pbar_desc)
 
         train_loss = np.mean(train_loss_list)
         train_miou = np.mean(train_miou_list)
@@ -186,7 +189,7 @@ def main(opt):
 
         lr = optimizer.param_groups[0]["lr"]
 
-        if (epoch + 1) % 5 == 0 or (epoch + 1) in [1, 2, 3, 4, 5]:
+        if (epoch + 1) % 5 == 0:
             model_path1 = save_path + "/" + opt.dataset_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
                 round(lr, 10)) + '.pth'
             torch.save(sam.state_dict(), model_path1)
