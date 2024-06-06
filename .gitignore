@@ -175,3 +175,5 @@ cython_debug/
 .idea/
 
 val/
+models_box/
+models_no_box/
