@@ -22,7 +22,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=2, help='train epcoh')
@@ -32,7 +32,6 @@ def parse_opt():
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=False, help='is use box')
-    return parser.parse_known_args()[0]
 
 
 def main(opt):
@@ -180,7 +179,7 @@ def main(opt):
 
         lr = optimizer.param_groups[0]["lr"]
 
-        if (epoch + 1) % 5 == 0 or (epoch + 1) in [1, 2, 3, 4, 5]:
+        if (epoch + 1) % 5 == 0:
             model_path1 = save_path + "/" + opt.dataset_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
                 round(lr, 10)) + '.pth'
             torch.save(sam.state_dict(), model_path1)
