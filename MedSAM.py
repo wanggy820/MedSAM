@@ -10,6 +10,22 @@ import torch.nn.functional as F
 import random
 join = os.path.join
 
+
+class MyFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input):
+        # 前向传播计算
+        output = (input > 0.5).float()
+        # 保存输入张量，以便在反向传播中使用
+        ctx.save_for_backward(input)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # 反向传播计算梯度
+        grad_input = (grad_output > 0.5).float()
+        return grad_input
+
 class MedSAM(nn.Module):
     def __init__(
         self,
@@ -62,6 +78,7 @@ class MedSAM(nn.Module):
                 boxes=boxes_torch,
                 masks=masks_torch,
             )
+
         low_res_masks, _ = self.mask_decoder(
             image_embeddings=image_embedding,  # (B, 256, 64, 64)
             image_pe=self.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
@@ -76,9 +93,16 @@ class MedSAM(nn.Module):
             mode="bilinear",
             align_corners=False,
         )
-        low_res_pred = low_res_pred.detach().cpu().numpy()  # (256, 256)
-        medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
-        return medsam_seg
+
+        output = MyFunction.apply(low_res_pred)
+        # 计算梯度
+        # output.backward()
+
+        # result = (low_res_pred > 0.5).float()
+        # result.requires_grad_()
+        # # low_res_pred = low_res_pred.detach().cpu().numpy()  # (256, 256)
+        # pred = torch.where(low_res_pred > 0.5, torch.tensor(1.0), torch.tensor(0.0))
+        return output
 
 
 class ISBIDataset(Dataset):

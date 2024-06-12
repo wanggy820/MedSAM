@@ -88,18 +88,21 @@ class SAMTarget(nn.Module):
         self.input = input
 
     def forward(self, x):
-        x = torch.tensor(x).type(torch.FloatTensor)
+        # x = torch.tensor(x, requires_grad=True).type(torch.FloatTensor)
+
         # 读取图片，将图片转为RGB
         origin_img = cv2.imread(self.input)
         rgb_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
         print(x.sum())
 
-        crop_img = torch.tensor(rgb_img)/255
+        tmpLbl = np.ascontiguousarray(rgb_img)
+        crop_img = torch.from_numpy(tmpLbl)/255
+        # crop_img = torch.tensor(crop_img)/255
         labels = crop_img.type(torch.FloatTensor).unsqueeze(0)
 
         bce_loss = nn.BCELoss(reduction='mean')
-        loss = bce_loss(x, labels)
-        loss.requires_grad_(True)
+        loss = bce_loss(x, labels)/10
+        # loss.requires_grad_(True)
         return loss
 
 
