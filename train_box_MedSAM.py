@@ -32,7 +32,7 @@ def parse_opt():
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=False, help='is use box')
-
+    return parser.parse_known_args()[0]
 
 def main(opt):
     if torch.backends.mps.is_available():
