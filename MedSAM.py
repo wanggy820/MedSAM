@@ -95,13 +95,6 @@ class MedSAM(nn.Module):
         )
 
         output = MyFunction.apply(low_res_pred)
-        # 计算梯度
-        # output.backward()
-
-        # result = (low_res_pred > 0.5).float()
-        # result.requires_grad_()
-        # # low_res_pred = low_res_pred.detach().cpu().numpy()  # (256, 256)
-        # pred = torch.where(low_res_pred > 0.5, torch.tensor(1.0), torch.tensor(0.0))
         return output
 
 

@@ -1,5 +1,5 @@
 import torchvision.transforms as transforms
-from torch.nn import functional as F
+import torch.nn.functional as F
 import torch.nn as nn
 from MedSAM import MedSAM
 from skimage import transform, io
@@ -88,21 +88,31 @@ class SAMTarget(nn.Module):
         self.input = input
 
     def forward(self, x):
+        # return 1-x
         # x = torch.tensor(x, requires_grad=True).type(torch.FloatTensor)
 
         # 读取图片，将图片转为RGB
         origin_img = cv2.imread(self.input)
         rgb_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
-        print(x.sum())
 
-        tmpLbl = np.ascontiguousarray(rgb_img)
-        crop_img = torch.from_numpy(tmpLbl)/255
+        # mask_256 = transform.resize(
+        #     rgb_img, (256, 256), order=3, preserve_range=True, anti_aliasing=True
+        # ).astype(np.uint8)
+        # mask_256 = (mask_256 - mask_256.min()) / np.clip(
+        #     mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
+        # )  # normalize to [0, 1], (H, W, 1)
+        prompt_masks = np.expand_dims(rgb_img, axis=0).astype(np.float32)
+
+
+
+
+        # tmpLbl = np.ascontiguousarray(rgb_img)
+        crop_img = torch.from_numpy(prompt_masks)/255
         # crop_img = torch.tensor(crop_img)/255
-        labels = crop_img.type(torch.FloatTensor).unsqueeze(0)
+        # labels = crop_img.type(torch.FloatTensor)
 
         bce_loss = nn.BCELoss(reduction='mean')
-        loss = bce_loss(x, labels)/10
-        # loss.requires_grad_(True)
+        loss = bce_loss(x, crop_img)
         return loss
 
 
@@ -131,9 +141,9 @@ def main():
     # mask_decoder = sam.mask_decoder
     medsam.eval()
 
-    # print(medsam.mask_decoder.iou_prediction_head.layers[2])
-
-    target_layers = [sam.mask_decoder.iou_prediction_head.layers[2]]
+    # print(medsam.mask_decoder)
+    target_layers = [sam.image_encoder.neck[3]]
+    # target_layers = [sam.mask_decoder.iou_prediction_head.layers[1]]
 
     # print(traget_layers)
     img_name_list, lbl_name_list = getDatasets(opt.dataset_name, opt.data_dir, "val")
@@ -144,6 +154,7 @@ def main():
     interaction_u2net_predict(medsam, mask_path, opt.use_box)
 
     img_np = io.imread(image_path)
+    H, W, _ = img_np.shape
     net_input = get_img_1024_tensor(img_np)
 
     canvas_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
@@ -153,9 +164,11 @@ def main():
     grayscale_cam = cam(net_input, targets=[SAMTarget(mask_path)])
     grayscale_cam = grayscale_cam[0, :]
 
+    origin_cam = cv2.resize(grayscale_cam, (W, H))
+
     # 将feature map与原图叠加并可视化
     src_img = np.float32(canvas_img) / 255
-    visualization_img = show_cam_on_image(src_img, grayscale_cam, use_rgb=False)
+    visualization_img = show_cam_on_image(src_img, origin_cam, use_rgb=False)
     cv2.imshow('feature map', visualization_img)
     cv2.waitKey(0)
 
