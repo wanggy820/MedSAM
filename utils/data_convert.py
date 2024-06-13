@@ -93,7 +93,7 @@ def getDatasets(dataset_name, root_dir, data_type):
         if data_type == "test":
             data_dir = root_dir + "MICCAI2023/"
 
-        image_list = sorted(glob.glob(data_dir + "/image/*"))
+        image_list = sorted(glob.glob(data_dir + "image/*"))
         if data_type == "test":
             mask_list = sorted(glob.glob(data_dir + "/bbox/*"))
         else:

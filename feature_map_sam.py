@@ -1,9 +1,6 @@
-import torchvision.transforms as transforms
-import torch.nn.functional as F
 import torch.nn as nn
 from MedSAM import MedSAM
 from skimage import transform, io
-from segment_anything.utils.transforms import ResizeLongestSide
 import pytorch_grad_cam
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import argparse
@@ -88,28 +85,12 @@ class SAMTarget(nn.Module):
         self.input = input
 
     def forward(self, x):
-        # return 1-x
-        # x = torch.tensor(x, requires_grad=True).type(torch.FloatTensor)
-
         # 读取图片，将图片转为RGB
         origin_img = cv2.imread(self.input)
         rgb_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
 
-        # mask_256 = transform.resize(
-        #     rgb_img, (256, 256), order=3, preserve_range=True, anti_aliasing=True
-        # ).astype(np.uint8)
-        # mask_256 = (mask_256 - mask_256.min()) / np.clip(
-        #     mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
-        # )  # normalize to [0, 1], (H, W, 1)
         prompt_masks = np.expand_dims(rgb_img, axis=0).astype(np.float32)
-
-
-
-
-        # tmpLbl = np.ascontiguousarray(rgb_img)
         crop_img = torch.from_numpy(prompt_masks)/255
-        # crop_img = torch.tensor(crop_img)/255
-        # labels = crop_img.type(torch.FloatTensor)
 
         bce_loss = nn.BCELoss(reduction='mean')
         loss = bce_loss(x, crop_img)
@@ -135,17 +116,12 @@ def main():
     if not os.path.exists(checkpoint):
         checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
     sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=checkpoint).to(device)
-    # sam.eval()
-
     medsam = MedSAM(sam.image_encoder, sam.mask_decoder, sam.prompt_encoder)
-    # mask_decoder = sam.mask_decoder
     medsam.eval()
 
     # print(medsam.mask_decoder)
-    target_layers = [sam.image_encoder.neck[3]]
-    # target_layers = [sam.mask_decoder.iou_prediction_head.layers[1]]
+    target_layers = [medsam.image_encoder.neck[3]]
 
-    # print(traget_layers)
     img_name_list, lbl_name_list = getDatasets(opt.dataset_name, opt.data_dir, "val")
     index = 1
     image_path = img_name_list[index]
@@ -171,7 +147,6 @@ def main():
     visualization_img = show_cam_on_image(src_img, origin_cam, use_rgb=False)
     cv2.imshow('feature map', visualization_img)
     cv2.waitKey(0)
-
 
 if __name__ == "__main__":
     main()
