@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from torch.autograd import Variable
@@ -8,9 +7,7 @@ import sys
 import time
 
 from PyQt5.QtGui import (
-    QBrush,
     QPainter,
-    QPen,
     QPixmap,
     QKeySequence,
     QPen,
@@ -21,15 +18,10 @@ from PyQt5.QtGui import (
 from PyQt5.QtWidgets import (
     QFileDialog,
     QApplication,
-    QGraphicsEllipseItem,
-    QGraphicsItem,
-    QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsView,
-    QGraphicsPixmapItem,
     QHBoxLayout,
     QPushButton,
-    QSlider,
     QVBoxLayout,
     QWidget,
     QShortcut,
@@ -38,15 +30,12 @@ from PyQt5.QtWidgets import (
 import numpy as np
 from skimage import transform, io
 import torch
-import torch.nn as nn
 from torch.nn import functional as F
 from PIL import Image
-
 from U2_Net.data_loader import RescaleT, ToTensorLab, SalObjDataset
 from U2_Net.model import U2NET
 from segment_anything import sam_model_registry
-import cv2
-from torchvision import transforms as T
+from utils.box import find_bboxes
 
 # freeze seeds
 torch.manual_seed(2023)
@@ -56,7 +45,7 @@ np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
 MedSAM_CKPT_PATH = "work_dir/MedSAM/medsam_vit_b.pth"
-MedSAM_CKPT_PATH = "models_box/MICCAI_sam_best.pth"
+# MedSAM_CKPT_PATH = "models_no_box/MICCAI_sam_best.pth"
 MEDSAM_IMG_INPUT_SIZE = 1024
 
 if torch.backends.mps.is_available():
@@ -150,33 +139,8 @@ def find_u2net_bboxes(input, image_name):
     image = io.imread(image_name)
     imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
 
-
-    pred = np.array(imo)
-
     # imo.save("33.png")
-    masks = np.expand_dims(pred, axis=0)
-    boxes = []
-    maxw = maxh = 0
-    #
-    for i in range(masks.shape[0]):
-        mask = masks[i]
-        coor = np.nonzero(mask)
-        xmin = coor[0][0]
-        xmax = coor[0][-1]
-        coor[1].sort()  # 直接改变原数组，没有返回值
-        ymin = coor[1][0]
-        ymax = coor[1][-1]
-
-        width = ymax - ymin
-        height = xmax - xmin
-
-        # 这儿可以不要，这是为了找到最大值方便分割成统一的矩形
-        if width > maxw:
-            maxw = width
-        if height > maxh:
-            maxh = height
-        boxes.append((ymin, xmin, maxw, maxh))
-    return np.array(boxes)
+    return find_bboxes(imo)
 
 def get_u2net_bbox(img_path):
     model_dir = "U2_Net/saved_models/u2net/u2net_bce_best_MICCAI.pth"
@@ -310,32 +274,23 @@ class Window(QWidget):
         # self.scene.mouseReleaseEvent = self.mouse_release
 
 
-        bboxs = get_u2net_bbox(self.image_path)
-        box = [0,0,0,0]
-        box = np.array(box)
-
-        for j in bboxs:
-            # self.scene.addRect(
-            #     j[0], j[1], j[2], j[3], pen=QPen(QColor("red"))
-            # )
-            if box[2] * box[3] < j[2] * j[3]:
-                box = j
-            else:
-                continue
-            xmin = j[0]
-            ymin = j[1]
-            xmax = j[0] + j[2]
-            ymax = j[1] + j[3]
+        box_np = get_u2net_bbox(self.image_path)
 
         H, W, _ = self.img_3c.shape
-        box_np = np.array([[xmin, ymin, xmax, ymax]])
         # print("bounding box:", box_np)
         box_1024 = box_np / np.array([W, H, W, H]) * 1024
 
         sam_mask = medsam_inference(medsam_model, self.embedding, box_1024, H, W)
 
+        if len(sam_mask.shape) > 2:
+            sum_np = 0
+            for i in range(0, sam_mask.shape[0]):
+                sum_np += sam_mask[i]
+        else:
+            sum_np = sam_mask
+
         self.prev_mask = self.mask_c.copy()
-        self.mask_c[sam_mask != 0] = colors[self.color_idx % len(colors)]
+        self.mask_c[sum_np != 0] = colors[self.color_idx % len(colors)]
         self.color_idx += 1
 
         bg = Image.fromarray(self.img_3c.astype("uint8"), "RGB")
@@ -344,9 +299,10 @@ class Window(QWidget):
 
         # self.scene.removeItem(self.bg_img)
         self.bg_img = self.scene.addPixmap(np2pixmap(np.array(img)))
-        self.scene.addRect(
-            box[0], box[1], box[2], box[3], pen=QPen(QColor("red"))
-        )
+        for i in range(0, box_np.shape[0]):
+            self.scene.addRect(
+                box_np[i][0], box_np[i][1], box_np[i][2] - box_np[i][0], box_np[i][3] - box_np[i][1], pen=QPen(QColor("red"))
+            )
 
     def mouse_press(self, ev):
         x, y = ev.scenePos().x(), ev.scenePos().y()
@@ -586,5 +542,9 @@ Swin-UNetr  训练模型
 
 牙齿、皮肤癌分割任务效果  最新的论文摘要、结果， 发表的期刊，写成word文档
 Swin-UNetr  训练模型
+
+
+
+谷歌学术 搜索 引用论文
 
 '''

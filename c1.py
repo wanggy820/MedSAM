@@ -25,22 +25,11 @@ data = pd.read_csv(f)
 for img, seg in zip(data["img"], data["seg"]):
     im = cv2.imread(data_root + seg)
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(gray, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-    if len(contours) < 1:
-        continue
-    maxW = 0
-    maxH = 0
-    maxX = 0
-    maxY = 0
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        if x*h > maxW*maxH:
-            maxX = x
-            maxY = y
-            maxW = w
-            maxH = h
+    y_indices, x_indices = np.where(gray > 0)
+    x_min, x_max = np.min(x_indices), np.max(x_indices)
+    y_min, y_max = np.min(y_indices), np.max(y_indices)
 
-    bbox_coords[img] = np.array([maxX, maxY, maxX + maxW, maxY + maxH])
+    bbox_coords[img] = np.array([x_min, y_min, x_max, y_max])
     gt_grayscale = cv2.imread(data_root + seg, cv2.IMREAD_GRAYSCALE)
     ground_truth_masks[img] = (gt_grayscale == 0)
 

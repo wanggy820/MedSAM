@@ -42,6 +42,18 @@ class RescaleT(object):
 
 		return {'imidx':imidx, 'image':img,'label':lbl}
 
+
+class RescaleT1(object):
+
+	def __init__(self,output_size):
+		assert isinstance(output_size,(int,tuple))
+		self.output_size = output_size
+
+	def __call__(self,image):
+		img = transform.resize(image,(self.output_size,self.output_size),mode='constant')
+
+		return img
+
 class Rescale(object):
 
 	def __init__(self,output_size):
@@ -227,6 +239,32 @@ class ToTensorLab(object):
 		tmpLbl = np.ascontiguousarray(tmpLbl)
 		return {'imidx':torch.from_numpy(imidx), 'image': torch.from_numpy(tmpImg), 'label': torch.from_numpy(tmpLbl)}
 
+
+class ToTensorLab1(object):
+	"""Convert ndarrays in sample to Tensors."""
+	def __init__(self,flag=0, num_class=1):
+		self.flag = flag
+		self.num_class = num_class
+
+	def __call__(self, image):
+
+		tmpImg = np.zeros((image.shape[0], image.shape[1], 3))
+		image = image / np.max(image)
+		if image.shape[2] == 1:
+			tmpImg[:, :, 0] = (image[:, :, 0] - 0.485) / 0.229
+			tmpImg[:, :, 1] = (image[:, :, 0] - 0.485) / 0.229
+			tmpImg[:, :, 2] = (image[:, :, 0] - 0.485) / 0.229
+		else:
+			tmpImg[:, :, 0] = (image[:, :, 0] - 0.485) / 0.229
+			tmpImg[:, :, 1] = (image[:, :, 1] - 0.456) / 0.224
+			tmpImg[:, :, 2] = (image[:, :, 2] - 0.406) / 0.225
+
+
+		tmpImg = tmpImg.transpose((2, 0, 1))
+
+		tmpImg = np.ascontiguousarray(tmpImg)
+		return torch.from_numpy(tmpImg)
+
 class SalObjDataset(Dataset):
 	def __init__(self,img_name_list,lbl_name_list,transform=None):
 		# self.root_dir = root_dir
@@ -245,7 +283,7 @@ class SalObjDataset(Dataset):
 		# label = Image.open(self.label_name_list[idx])#io.imread(self.label_name_list[idx])
 
 		image = io.imread(self.image_name_list[idx])
-		imname = self.image_name_list[idx]
+		# imname = self.image_name_list[idx]
 		imidx = np.array([idx])
 
 		if(0==len(self.label_name_list)):

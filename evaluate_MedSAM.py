@@ -7,8 +7,9 @@ from skimage import transform, io
 from segment_anything import sam_model_registry
 from torch.nn import functional as F
 import logging
+
+from utils.box import find_bboxes
 from utils.data_convert import getDatasets
-from PIL import Image
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -24,9 +25,9 @@ SAM_MODEL_TYPE = "vit_b"
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='ISBI', help="dataset name")
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser
 def dice_iou(pred, target, smooth=1.0):
     # 读取并转换图像为二值化形式
@@ -52,31 +53,14 @@ colors = [
     (255, 255, 255),
 ]
 
-def find_bboxes(image):
-    pred = np.array(image)
-    im = Image.fromarray(pred * 255).convert('RGB')
-    pred = np.array(im)
-    gray = cv2.cvtColor(pred, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(gray, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-
-    maxW = 0
-    maxH = 0
-    maxX = 0
-    maxY = 0
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        if x*h > maxW*maxH:
-            maxX = x
-            maxY = y
-            maxW = w
-            maxH = h
-
-    return np.array([[maxX, maxY, maxX + maxW, maxY + maxH]])
-
 @torch.no_grad()
 def medsam_inference(sam, img_embed, prompt_box, prompt_masks, height, width):
     box_torch = torch.as_tensor(prompt_box, dtype=torch.float, device=img_embed.device)
-    masks_torch = torch.as_tensor(prompt_masks, dtype=torch.float, device=img_embed.device)
+    if prompt_masks is None:
+        masks_torch = None
+    else:
+        masks_torch = torch.as_tensor(prompt_masks, dtype=torch.float, device=img_embed.device)
+
     if len(box_torch.shape) == 2:
         box_torch = box_torch[:, None, :]  # (B, 1, 4)
 
@@ -102,7 +86,14 @@ def medsam_inference(sam, img_embed, prompt_box, prompt_masks, height, width):
         align_corners=False,
     )  # (1, 1, gt.shape)
     low_res_pred = low_res_pred.squeeze().cpu().numpy()  # (256, 256)
-    medsam_seg = (low_res_pred > 0.5).astype(np.uint8)
+
+    res_pred = low_res_pred
+    if len(low_res_pred.shape) == 3:
+        medsam_seg = 0
+        for i in range(0, low_res_pred.shape[0]):
+            medsam_seg += low_res_pred[i]
+        res_pred = medsam_seg
+    medsam_seg = (res_pred > 0.5).astype(np.uint8)
     return medsam_seg
 
 @torch.no_grad()
@@ -173,7 +164,7 @@ def interaction_u2net_predict(sam, image_path, mask_path, user_box, save_dir):
 
 def main():
     opt = get_argparser().parse_args()
-    interaction_dir = f'./val/{opt.dataset_name}'
+    interaction_dir = f'./val/{opt.dataset_name}_{opt.use_box}'
     create_clear_dir(interaction_dir)
 
     # set up model
@@ -182,7 +173,9 @@ def main():
         model_path = "./models_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
-        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
+        checkpoint = './work_dir/MedSAM/medsam_vit_b.pth'
+
+    checkpoint = './work_dir/MedSAM/medsam_vit_b.pth'
     sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=checkpoint).to(device)
     sam.eval()
 
@@ -190,7 +183,7 @@ def main():
     print("Number of images: ", len(img_name_list))
 
     dataset_name = opt.dataset_name
-    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename=f'./val/{dataset_name }_{opt.use_box}_val.log', encoding='utf-8', level=logging.DEBUG)
 
     with torch.no_grad():
         # --------- 4. inference for each image ---------

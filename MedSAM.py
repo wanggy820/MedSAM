@@ -1,4 +1,3 @@
-import glob
 import os
 import numpy as np
 import pandas as pd
@@ -10,6 +9,22 @@ import torch.nn.functional as F
 import random
 join = os.path.join
 
+
+class MyFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input):
+        # 前向传播计算
+        output = (input > 0.5).float()
+        # 保存输入张量，以便在反向传播中使用
+        ctx.save_for_backward(input)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        # 反向传播计算梯度
+        grad_input = (grad_output > 0.5).float()
+        return grad_input
+
 class MedSAM(nn.Module):
     def __init__(
         self,
@@ -18,6 +33,10 @@ class MedSAM(nn.Module):
         prompt_encoder,
     ):
         super().__init__()
+        self.boxes = None
+        self.masks = None
+        self.width = 0
+        self.height = 0
         self.image_encoder = image_encoder
         self.mask_decoder = mask_decoder
         self.prompt_encoder = prompt_encoder
@@ -25,33 +44,57 @@ class MedSAM(nn.Module):
         for param in self.prompt_encoder.parameters():
             param.requires_grad = False
 
-    def forward(self, image, box):
+    def setBox(self, boxes, masks, width, height):
+        self.boxes = boxes
+        self.masks = masks
+        self.width = width
+        self.height = height
+
+    def forward(self, image, boxes=None, masks=None):
         image_embedding = self.image_encoder(image)  # (B, 256, 64, 64)
+
+
+        if boxes is None:
+            boxes = self.boxes
+        if boxes is None:
+            boxes_torch = None
+        else:
+            boxes_torch = torch.as_tensor(boxes, dtype=torch.float32, device=image.device)
+            if len(boxes_torch.shape) == 2:
+                boxes_torch = boxes_torch[:, None, :]  # (B, 1, 4)
+
+        if masks is None:
+            masks = self.masks
+        if masks is None:
+            masks_torch = None
+        else:
+            masks_torch = torch.as_tensor(masks, dtype=torch.float, device=image.device)
+
         # do not compute gradients for prompt encoder
         with torch.no_grad():
-            box_torch = torch.as_tensor(box, dtype=torch.float32, device=image.device)
-            if len(box_torch.shape) == 2:
-                box_torch = box_torch[:, None, :]  # (B, 1, 4)
-
             sparse_embeddings, dense_embeddings = self.prompt_encoder(
                 points=None,
-                boxes=box_torch,
-                masks=None,
+                boxes=boxes_torch,
+                masks=masks_torch,
             )
-        low_res_masks, _ = self.mask_decoder(
+
+        low_res_masks = self.mask_decoder(
             image_embeddings=image_embedding,  # (B, 256, 64, 64)
             image_pe=self.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
             sparse_prompt_embeddings=sparse_embeddings,  # (B, 2, 256)
             dense_prompt_embeddings=dense_embeddings,  # (B, 256, 64, 64)
             multimask_output=False,
         )
-        ori_res_masks = F.interpolate(
-            low_res_masks,
-            size=(image.shape[2], image.shape[3]),
+        low_res_pred = torch.sigmoid(low_res_masks)  # (1, 1, 256, 256)
+        low_res_pred = F.interpolate(
+            low_res_pred,
+            size=(self.height, self.width),
             mode="bilinear",
             align_corners=False,
         )
-        return ori_res_masks
+
+        output = MyFunction.apply(low_res_pred)
+        return output
 
 
 class ISBIDataset(Dataset):

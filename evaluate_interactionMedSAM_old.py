@@ -121,21 +121,11 @@ def find_u2net_bboxes(input, image_name):
 
     pred = np.array(imo)
     gray = cv2.cvtColor(pred, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(gray, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    y_indices, x_indices = np.where(gray > 0)
+    x_min, x_max = np.min(x_indices), np.max(x_indices)
+    y_min, y_max = np.min(y_indices), np.max(y_indices)
 
-    maxW = 0
-    maxH = 0
-    maxX = 0
-    maxY = 0
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        if x*h > maxW*maxH:
-            maxX = x
-            maxY = y
-            maxW = w
-            maxH = h
-
-    return np.array([[maxX, maxY, maxX + maxW, maxY + maxH]])
+    return np.array([[x_min, y_min, x_max, y_max]])
 
 @torch.no_grad()
 def medsam_inference(medsam_model, img_embed, box_1024, height, width):
