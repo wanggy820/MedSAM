@@ -10,7 +10,7 @@ import os
 import matplotlib.pyplot as plt
 import argparse
 import torch
-from torch import nn, optim
+from torch import optim
 from segment_anything import sam_model_registry
 
 # 设置了一些配置参数

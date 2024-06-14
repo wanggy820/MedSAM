@@ -11,8 +11,8 @@ from torch.nn import functional as F
 
 from typing import List, Tuple, Type
 
-from . import MaskDecoder
-from .common import LayerNorm2d
+from segment_anything.modeling import MaskDecoder
+from segment_anything.modeling.common import LayerNorm2d
 
 
 class FeatureMapMaskDecoder(MaskDecoder):

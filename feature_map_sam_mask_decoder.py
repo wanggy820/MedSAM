@@ -10,8 +10,8 @@ import numpy as np
 import torch
 from segment_anything.modeling import TwoWayTransformer, Sam, ImageEncoderViT, PromptEncoder
 from segment_anything.modeling.mask_decoder_feature_map import FeatureMapMaskDecoder
-from utils.data_convert import getDatasets, find_bboxes
-from PIL import Image
+from utils.box import find_bboxes
+from utils.data_convert import getDatasets
 from functools import partial
 from pathlib import Path
 import urllib.request

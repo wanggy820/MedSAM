@@ -27,8 +27,8 @@ class MedSAMBox(Dataset):
         return len(self.image_list)
 
     def __getitem__(self, idx):
-        image_path = self.image_list[idx] # 读取image data路径
-        mask_path = self.mask_list[idx] # 读取mask data 路径
+        image_path = self.image_list[idx]  # 读取image data路径
+        mask_path = self.mask_list[idx]  # 读取mask data 路径
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
@@ -56,7 +56,7 @@ class MedSAMBox(Dataset):
         mask = self.resize(mask).squeeze(0)
         mask = (mask != 0) * 1
 
-        #####################################
+        ##################################### 不能用 find_bboxes() 张量维度不一样
         y_indices, x_indices = np.where(mask_np > 0)
         x_min, x_max = np.min(x_indices), np.max(x_indices)
         y_min, y_max = np.min(y_indices), np.max(y_indices)
