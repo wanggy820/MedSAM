@@ -1,8 +1,6 @@
 import glob
 import json
 import os
-
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -95,9 +93,9 @@ def getDatasets(dataset_name, root_dir, data_type):
 
         image_list = sorted(glob.glob(data_dir + "image/*"))
         if data_type == "test":
-            mask_list = sorted(glob.glob(data_dir + "/bbox/*"))
+            mask_list = sorted(glob.glob(data_dir + "bbox/*"))
         else:
-            mask_list = sorted(glob.glob(data_dir + "/mask/*"))
+            mask_list = sorted(glob.glob(data_dir + "mask/*"))
         return image_list, mask_list
 
     if dataset_name == "Thyroid":

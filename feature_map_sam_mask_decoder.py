@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from segment_anything.modeling import TwoWayTransformer, Sam, ImageEncoderViT, PromptEncoder
 from segment_anything.modeling.mask_decoder_feature_map import FeatureMapMaskDecoder
-from utils.data_convert import getDatasets
+from utils.data_convert import getDatasets, find_bboxes
 from PIL import Image
 from functools import partial
 from pathlib import Path
@@ -24,29 +24,6 @@ torch.cuda.manual_seed(2023)
 np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
-
-
-def find_bboxes(image):
-    pred = np.array(image)
-    im = Image.fromarray(pred * 255).convert('RGB')
-    pred = np.array(im)
-    gray = cv2.cvtColor(pred, cv2.COLOR_BGR2GRAY)
-    contours, hierarchy = cv2.findContours(gray, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-
-    maxW = 0
-    maxH = 0
-    maxX = 0
-    maxY = 0
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        if x * h > maxW * maxH:
-            maxX = x
-            maxY = y
-            maxW = w
-            maxH = h
-
-    return np.array([[maxX, maxY, maxX + maxW, maxY + maxH]])
-
 
 def interaction_u2net_predict(sam, mask_path, user_box):
     mask_np = io.imread(mask_path)

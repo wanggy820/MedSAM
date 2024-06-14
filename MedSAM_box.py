@@ -1,3 +1,5 @@
+import random
+
 from skimage import transform
 import cv2
 import numpy as np
@@ -6,7 +8,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
 from segment_anything.utils.transforms import ResizeLongestSide
-import random
+from utils.box import find_bboxes
+
 
 class MedSAMBox(Dataset):
     def __init__(self, sam, image_list, mask_list, bbox_shift=20):
