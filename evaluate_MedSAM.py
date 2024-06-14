@@ -20,12 +20,7 @@ torch.manual_seed(2023)
 torch.cuda.empty_cache()
 torch.cuda.manual_seed(2023)
 np.random.seed(2023)
-
 SAM_MODEL_TYPE = "vit_b"
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_argparser():
     parser = argparse.ArgumentParser()
