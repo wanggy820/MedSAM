@@ -203,7 +203,7 @@ class SAMTarget(nn.Module):
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
@@ -237,10 +237,14 @@ def main():
         interaction_u2net_predict(medsam, mask_path, opt.use_box)
 
         img_np = io.imread(image_path)
-        H, W, _ = img_np.shape
-        net_input = get_img_1024_tensor(img_np)
+        if len(img_np.shape) == 2:
+            img_3c = np.repeat(img_np[:, :, None], 3, axis=-1)
+        else:
+            img_3c = img_np
+        H, W, _ = img_3c.shape
+        net_input = get_img_1024_tensor(img_3c)
 
-        canvas_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        canvas_img = cv2.cvtColor(img_3c, cv2.COLOR_RGB2BGR)
 
         grayscale_cam = cam(net_input, targets=[SAMTarget(mask_path)])
         grayscale_cam = grayscale_cam[0, :]

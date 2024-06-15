@@ -4,45 +4,25 @@
 
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-from functools import partial
-from pathlib import Path
-import urllib.request
-import torch
 
-from ..segment_anything.modeling import (
-    ImageEncoderViT,
-    MaskDecoder,
-    PromptEncoder,
-    Sam,
-    TwoWayTransformer,
-)
+import torch
+from U2_Net.model import U2NET, U2NETP
+from segment_anything.modeling import PromptEncoder, TwoWayTransformer, MaskDecoder
+from segment_anything_u2net.u2net_encoder import U2NetEncoder
+from segment_anything_u2net.u2net_sam import U2NetSam
 
 
 def build_sam(checkpoint=None):
-    encoder_embed_dim = 768,
-    encoder_depth = 12,
-    encoder_num_heads = 12,
-    encoder_global_attn_indexes = [2, 5, 8, 11],
-
+    in_ch = 3
+    out_ch = 1
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
-    sam = Sam(
-        image_encoder=ImageEncoderViT(
-            depth=encoder_depth,
-            embed_dim=encoder_embed_dim,
-            img_size=image_size,
-            mlp_ratio=4,
-            norm_layer=partial(torch.nn.LayerNorm, eps=1e-6),
-            num_heads=encoder_num_heads,
-            patch_size=vit_patch_size,
-            qkv_bias=True,
-            use_rel_pos=True,
-            global_attn_indexes=encoder_global_attn_indexes,
-            window_size=14,
-            out_chans=prompt_embed_dim,
-        ),
+
+    u2net = U2NETP(in_ch, out_ch)
+    sam = U2NetSam(
+        image_encoder=U2NetEncoder(u2net, image_size),
         prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
             image_embedding_size=(image_embedding_size, image_embedding_size),
@@ -65,7 +45,6 @@ def build_sam(checkpoint=None):
         pixel_std=[58.395, 57.12, 57.375],
     )
     sam.eval()
-    checkpoint = Path(checkpoint)
     if checkpoint is not None:
         with open(checkpoint, "rb") as f:
             state_dict = torch.load(f, map_location=torch.device('cpu'))
