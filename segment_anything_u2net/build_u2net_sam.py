@@ -22,7 +22,7 @@ def build_sam(checkpoint=None):
 
     u2net = U2NETP(in_ch, out_ch)
     sam = U2NetSam(
-        image_encoder=U2NetEncoder(u2net, image_size),
+        image_encoder=U2NetEncoder(u2net, prompt_embed_dim, image_embedding_size, image_size),
         prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
             image_embedding_size=(image_embedding_size, image_embedding_size),
