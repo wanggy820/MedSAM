@@ -12,7 +12,7 @@ from utils.box import find_bboxes
 
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=20):
+    def __init__(self, sam, image_list, mask_list, bbox_shift=0):
         self.device = sam.device
         self.image_list = image_list
         self.mask_list = mask_list
@@ -42,21 +42,11 @@ class MedSAMBox(Dataset):
         #####################################
 
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
-        mask = self.transform.apply_image(mask_np)  # 变换(1024)
-
-        mask = torch.as_tensor(mask)  # torch tensor
+        mask = torch.as_tensor(mask_np/255)  # torch tensor
         mask = mask.unsqueeze(0)
 
-        H, W = mask.shape[-2:]
-
-        padh = self.img_size - H
-        padw = self.img_size - W
-
-        mask = F.pad(mask, (0, padw, 0, padh))
-        mask = self.resize(mask).squeeze(0)
-        mask = (mask != 0) * 1
-
         ##################################### 不能用 find_bboxes() 张量维度不一样
+        H, W = mask_np.shape
         y_indices, x_indices = np.where(mask_np > 0)
         x_min, x_max = np.min(x_indices), np.max(x_indices)
         y_min, y_max = np.min(y_indices), np.max(y_indices)

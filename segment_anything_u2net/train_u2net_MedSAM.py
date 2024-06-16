@@ -1,10 +1,11 @@
 # 导入了一些库
 import warnings
 
+import cv2
+import torchvision
+from torch.nn import functional as F
 from segment_anything_u2net.build_u2net_sam import build_sam
 from utils.data_convert import mean_iou, compute_loss, build_dataloader_box
-
-warnings.filterwarnings(action='ignore')
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -13,7 +14,9 @@ import matplotlib.pyplot as plt
 import argparse
 import torch
 from torch import nn, optim
-from segment_anything import sam_model_registry
+from PIL import Image
+
+warnings.filterwarnings(action='ignore')
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
@@ -36,6 +39,8 @@ def parse_opt():
     parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser.parse_known_args()[0]
 
+
+criterion = nn.BCELoss()
 def main(opt):
     if torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -56,7 +61,7 @@ def main(opt):
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
         checkpoint = None
-    checkpoint = None
+    # checkpoint = None
     sam = build_sam(checkpoint=checkpoint)
     sam = sam.to(device=device)
 
@@ -121,11 +126,31 @@ def main(opt):
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
 
+
+            train_mask = train_mask * torch.where(prompt_masks > 0, 1, 0)
+
+            H, W = train_target_mask.shape[-2:]
+            low_res_pred = torch.sigmoid(train_mask)
+            low_res = F.interpolate(
+                low_res_pred,
+                size=(H, W),
+                mode="bilinear",
+                align_corners=False,
+            )
+
+            # c2 = low_res.squeeze().cpu()
+            # c3 = torch.where(c2 > 0.5, 255.0, 0.0)
+            # torchvision.utils.save_image(c3, "image_path.png")
+            #
+            # c21 = prompt_masks.squeeze().cpu()
+            # c31 = torch.where(c21 > 0, 255.0, 0.0)
+            # torchvision.utils.save_image(c31, "image_path1.png")
+
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
+            train_true_iou = mean_iou(low_res, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
-            train_loss_one = compute_loss(train_mask, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
 
             optimizer.step()
@@ -193,7 +218,7 @@ def main(opt):
         "Train_mIoU": tr_pl_mi_list,
         "Train_Loss": tr_pl_loss_list,
     }
-
+    print(plt_dict)
     plt.figure(figsize=(15, 15))
     for i, (key, item) in enumerate(plt_dict.items()):
         plt.subplot(2, 2, i + 1)
@@ -205,7 +230,7 @@ def main(opt):
 
     plt.savefig(save_path + f'/{opt.dataset_name}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
 
-
+# {'Train_mIoU': [0.6623069808748885, 0.7618775984601478], 'Train_Loss': [0.5310597625645724, 0.3650271041826768]}
 if __name__ == '__main__':
     opt = parse_opt()
     main(opt)

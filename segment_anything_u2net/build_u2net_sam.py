@@ -14,15 +14,14 @@ from segment_anything_u2net.u2net_sam import U2NetSam
 
 def build_sam(checkpoint=None):
     in_ch = 3
-    out_ch = 1
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
 
-    u2net = U2NETP(in_ch, out_ch)
+    u2net = U2NETP(in_ch, prompt_embed_dim)
     sam = U2NetSam(
-        image_encoder=U2NetEncoder(u2net, prompt_embed_dim, image_embedding_size, image_size),
+        image_encoder=U2NetEncoder(u2net, image_embedding_size, image_size),
         prompt_encoder=PromptEncoder(
             embed_dim=prompt_embed_dim,
             image_embedding_size=(image_embedding_size, image_embedding_size),

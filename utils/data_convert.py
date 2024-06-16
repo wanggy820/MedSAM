@@ -40,7 +40,7 @@ def dice_function(pred, target, smooth=1.0):
     return ((2. * intersection + smooth) /
                 (pred_flat.sum() + target_flat.sum() + smooth))
 def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
-    pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
+    # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
     fl = focal_loss(pred_mask, true_mask)
     dl = dice_loss(pred_mask, true_mask)
     mask_loss = 20 * fl + dl
@@ -51,9 +51,10 @@ def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
 
 
 def mean_iou(preds, labels, eps=1e-6):
-    preds = normalize(threshold(preds, 0.0, 0)).squeeze(1)
-    pred_cls = (preds == 1).float()
-    label_cls = (labels == 1).float()
+    preds = preds.squeeze(1)
+    labels = labels.squeeze(1)
+    pred_cls = (preds > 0.5).float()
+    label_cls = (labels > 0.5).float()
     intersection = (pred_cls * label_cls).sum(1).sum(1)
     union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
     intersection = intersection + (union == 0)
@@ -135,6 +136,7 @@ def getDatasets(dataset_name, root_dir, data_type):
             mask_list = glob.glob(data_dir + "/mask/*")
         return image_list, mask_list
 
+
 # 数据加载
 def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
     dataloaders = {}
@@ -148,6 +150,7 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
             pin_memory=True
         )
     return dataloaders
+
 
 def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
@@ -163,11 +166,14 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
         )
     return dataloaders
 
+
 # 定义转换管道
 transform = transforms.Compose([
-    transforms.ToTensor(), # 转换为Tensor
+    transforms.ToTensor(),  # 转换为Tensor
 ])
-def calculate_dice_iou(pred_path, mask_path, smooth = 1e-5):
+
+
+def calculate_dice_iou(pred_path, mask_path, smooth=1e-5):
     pre_img = Image.open(pred_path)
     pred = transform(pre_img)
 
@@ -191,31 +197,33 @@ def calculate_dice_iou(pred_path, mask_path, smooth = 1e-5):
     iou = (intersection + smooth) / (union + smooth)  # 添加1e-6以避免除以零
     return dice, iou
 
+
 def normPRED(d):
     ma = torch.max(d)
     mi = torch.min(d)
 
-    dn = (d-mi)/(ma-mi)
-    dn = torch.where(dn > (ma-mi)/2.0, 1.0, 0)
+    dn = (d - mi) / (ma - mi)
+    dn = torch.where(dn > (ma - mi) / 2.0, 1.0, 0)
     return dn
+
 
 def save_output(image_name, pred, d_dir):
     pred = normPRED(pred)
     predict = pred.squeeze()
     predict_np = predict.cpu().data.numpy()
 
-    im = Image.fromarray(predict_np*255).convert('RGB')
+    im = Image.fromarray(predict_np * 255).convert('RGB')
 
     image = io.imread(image_name)
-    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
+    imo = im.resize((image.shape[1], image.shape[0]), resample=Image.BILINEAR)
 
     img_name = image_name.split(os.sep)[-1]
 
     aaa = img_name.split(".")
     bbb = aaa[0:-1]
     imidx = bbb[0]
-    for i in range(1,len(bbb)):
+    for i in range(1, len(bbb)):
         imidx = imidx + "." + bbb[i]
-    image_path = d_dir+'/'+imidx+'.png'
+    image_path = d_dir + '/' + imidx + '.png'
     imo.save(image_path)
     return image_path

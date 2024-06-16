@@ -19,7 +19,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='ISBI', help='model name')
+    parser.add_argument('--datasets', type=str, default='Thyroid', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -67,6 +67,7 @@ def main(opt):
     net.to(device)
     net.eval()
     total_dice = 0
+    total_iou = 0
     for index, data in enumerate(test_loader):
         with torch.no_grad():
             inferencing = image_list[index]
@@ -77,7 +78,7 @@ def main(opt):
             d1, d2, d3, d4, d5, d6, d7 = net(inputs)
             u2net_dice, u2net_iou = dice_iou_function(d1.cpu().numpy(), labels.cpu().numpy())
             total_dice += u2net_dice
-
+            total_iou += u2net_iou
             print("inferencing:{},u2net_dice:{},u2net_iou:{}".format(inferencing, u2net_dice, u2net_iou))
 
             arr = inferencing.split("/")
@@ -90,19 +91,14 @@ def main(opt):
                     break
                 index = index + 1
             path = path + "bbox/"
-            image_name = arr[len(arr) - 1]
-            if image_name.find("\\"):
-                arr = image_name.split("\\")
-                image_name = arr[len(arr) - 1]
-            save_image_name = path + image_name
             if not os.path.exists(path):
                 # 如果文件夹不存在，则创建文件夹
                 os.makedirs(path)
 
-            pred = d1[:, 0, :, :]
+            pred = d1[0, 0, :, :]
             pred = normPRED(pred)
-            save_output(pred, inferencing, save_image_name)
-    print("total_dice:{}".format(total_dice/len(test_loader)))
+            save_output(inferencing, pred, path)
+    print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))
 
 
 if __name__ == '__main__':
