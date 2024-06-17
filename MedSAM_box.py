@@ -12,7 +12,7 @@ from utils.box import find_bboxes
 
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=0):
+    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.1):
         self.device = sam.device
         self.image_list = image_list
         self.mask_list = mask_list
@@ -22,6 +22,7 @@ class MedSAMBox(Dataset):
         self.img_size = sam.image_encoder.img_size
         self.resize = transforms.Resize((256, 256))
         self.bbox_shift = bbox_shift
+        self.ratio = max(ratio, 1)
 
     def __len__(self):
         return len(self.image_list)
@@ -42,11 +43,27 @@ class MedSAMBox(Dataset):
         #####################################
 
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        H, W = mask_np.shape
+        h = int(H * self.ratio)
+        w = int(W * self.ratio)
+        mask_ratio = transform.resize(
+            mask_np, (h, w), order=3, preserve_range=True, anti_aliasing=True
+        ).astype(np.uint8)
+
+        top = int(h*(self.ratio - 1)/2)
+        bottom = top + H
+        left = int(w * (self.ratio - 1) / 2)
+        right = left + W
+        mask_ratio_np = mask_ratio[top:bottom, left:right]
+        mask_ratio_np += mask_np
+        mask_ratio_np = mask_ratio_np // 2 + mask_ratio_np % 2
+        mask_ratio_masks = torch.as_tensor(mask_ratio_np, dtype=torch.float32)  # torch tensor
+        mask_ratio_masks = mask_ratio_masks.unsqueeze(0)
+
         mask = torch.as_tensor(mask_np/255)  # torch tensor
         mask = mask.unsqueeze(0)
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
-        H, W = mask_np.shape
         y_indices, x_indices = np.where(mask_np > 0)
         x_min, x_max = np.min(x_indices), np.max(x_indices)
         y_min, y_max = np.min(y_indices), np.max(y_indices)
@@ -74,5 +91,6 @@ class MedSAMBox(Dataset):
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
+            "mask_ratio_masks": mask_ratio_masks
         }
         return data

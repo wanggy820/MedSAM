@@ -34,7 +34,6 @@ def parse_opt():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='../datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser.parse_known_args()[0]
 
 def create_clear_dir(dir):
@@ -99,12 +98,10 @@ def main(opt):
     print("Loading model...")
 
     model_path = "./models_box/"
-    # if not opt.use_box:
-    #     model_path = "./models_no_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
 
     dataset_name = opt.dataset_name
-    logging.basicConfig(filename=f'./val/{dataset_name }_{opt.use_box}_val.log', encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename=f'./val/{dataset_name }_val.log', encoding='utf-8', level=logging.DEBUG)
 
     sam = build_sam(checkpoint=checkpoint)
     sam = sam.to(device=device)
@@ -114,7 +111,7 @@ def main(opt):
     dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
 
 
-    interaction_dir = f'./val/{opt.dataset_name}_{opt.use_box}'
+    interaction_dir = f'./val/{opt.dataset_name}'
     create_clear_dir(interaction_dir)
 
     interaction_total_dice = 0
@@ -142,12 +139,8 @@ def main(opt):
 
         # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
         val_encode_feature = sam.image_encoder(val_input)
-        if opt.use_box == True:
-            val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                 masks=prompt_masks)
-        else:
-            val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                 masks=None)
+        val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                         masks=prompt_masks)
 
 
         #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
@@ -166,7 +159,7 @@ def main(opt):
             mode="bilinear",
             align_corners=False,
         )
-
+        # low_res = low_res * torch.where(val_target_mask > 0, 1, 0)
         low_res = low_res.squeeze().cpu()
         res = torch.where(low_res > 0.5, 255.0, 0.0)
 

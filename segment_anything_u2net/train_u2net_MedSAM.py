@@ -26,8 +26,8 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
+    parser.add_argument('--dataset_name', type=str, default='ISBI', help='dataset name')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
@@ -36,7 +36,6 @@ def parse_opt():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='../datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser.parse_known_args()[0]
 
 
@@ -56,8 +55,6 @@ def main(opt):
     lr = opt.lr
 
     model_path = "./models_box/"
-    if not opt.use_box:
-        model_path = "./models_no_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
         checkpoint = None
@@ -105,18 +102,15 @@ def main(opt):
 
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
+            mask_ratio_masks = train_data["mask_ratio_masks"].to(device)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 train_encode_feature = sam.image_encoder(train_input)
-                if opt.use_box == True:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                      masks=prompt_masks)
-                else:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                         masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
@@ -126,9 +120,6 @@ def main(opt):
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
 
-
-            train_mask = train_mask * torch.where(prompt_masks > 0, 1, 0)
-
             H, W = train_target_mask.shape[-2:]
             low_res_pred = torch.sigmoid(train_mask)
             low_res = F.interpolate(
@@ -137,6 +128,7 @@ def main(opt):
                 mode="bilinear",
                 align_corners=False,
             )
+            low_res = low_res * torch.where(mask_ratio_masks > 0, 1, 0)
 
             # c2 = low_res.squeeze().cpu()
             # c3 = torch.where(c2 > 0.5, 255.0, 0.0)
