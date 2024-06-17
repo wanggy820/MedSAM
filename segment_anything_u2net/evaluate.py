@@ -24,7 +24,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='ISBI', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -124,7 +124,7 @@ def main(opt):
         val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
         prompt_box = val_data["prompt_box"].to(device)
         prompt_masks = val_data["prompt_masks"].to(device)
-
+        mask_ratio_masks = val_data["mask_ratio_masks"].to(device)
         image_path = val_data['image_path'][0]
         mask_path = val_data['mask_path'][0]
 
@@ -159,11 +159,14 @@ def main(opt):
             mode="bilinear",
             align_corners=False,
         )
-        # low_res = low_res * torch.where(val_target_mask > 0, 1, 0)
+        low_res = low_res * torch.where(mask_ratio_masks > 0, 1, 0)
         low_res = low_res.squeeze().cpu()
         res = torch.where(low_res > 0.5, 255.0, 0.0)
 
-        aaa = image_path.split("/")
+        if "\\" in image_path:
+            aaa = image_path.split("\\")
+        else:
+            aaa = image_path.split("/")
         image_path = interaction_dir + '/' + aaa[len(aaa) - 1]
         torchvision.utils.save_image(res, image_path)
 

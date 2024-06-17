@@ -203,7 +203,7 @@ class SAMTarget(nn.Module):
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
@@ -255,7 +255,7 @@ def main():
         src_img = np.float32(canvas_img) / 255
         visualization_img = show_cam_on_image(src_img, origin_cam, use_rgb=False)
 
-        arr = image_path.split("/")
+        arr = image_path.split("\\")
         image_name = arr[len(arr) - 1]
         path = "./feature_map"
         if not os.path.exists(path):
