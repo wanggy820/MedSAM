@@ -18,22 +18,22 @@ from .common import LayerNorm2d, MLPBlock
 class ImageEncoderViT(nn.Module):
     def __init__(
         self,
-        img_size: int = 1024,
-        patch_size: int = 16,
-        in_chans: int = 3,
-        embed_dim: int = 768,
-        depth: int = 12,
-        num_heads: int = 12,
-        mlp_ratio: float = 4.0,
-        out_chans: int = 256,
-        qkv_bias: bool = True,
-        norm_layer: Type[nn.Module] = nn.LayerNorm,
-        act_layer: Type[nn.Module] = nn.GELU,
-        use_abs_pos: bool = True,
-        use_rel_pos: bool = False,
-        rel_pos_zero_init: bool = True,
-        window_size: int = 0,
-        global_attn_indexes: Tuple[int, ...] = (),
+        img_size: int = 1024,       # 图像大小
+        patch_size: int = 16,       # patch 大小
+        in_chans: int = 3,          # 图像输入通道
+        embed_dim: int = 768,       # patch 向量维度
+        depth: int = 12,            # VIT 深度
+        num_heads: int = 12,        # VIT 注意力深度
+        mlp_ratio: float = 4.0,     # MLP 隐含层和嵌入层比率
+        out_chans: int = 256,       # 输出通道
+        qkv_bias: bool = True,      # 是否添加QKV偏置
+        norm_layer: Type[nn.Module] = nn.LayerNorm,     # 归一化层
+        act_layer: Type[nn.Module] = nn.GELU,           # 激活层
+        use_abs_pos: bool = True,                       # 是否使用绝对位置嵌入
+        use_rel_pos: bool = False,                      # 是否在注意图中添加相对位置嵌入
+        rel_pos_zero_init: bool = True,                 # 初始化相对位置嵌入
+        window_size: int = 0,                           # 窗口注意力大小
+        global_attn_indexes: Tuple[int, ...] = (),      # 全局注意力块索引
     ) -> None:
         """
         Args:
@@ -55,14 +55,14 @@ class ImageEncoderViT(nn.Module):
         """
         super().__init__()
         self.img_size = img_size
-
+        # 构建嵌入层
         self.patch_embed = PatchEmbed(
             kernel_size=(patch_size, patch_size),
             stride=(patch_size, patch_size),
             in_chans=in_chans,
             embed_dim=embed_dim,
         )
-
+        # 位置嵌入层
         self.pos_embed: Optional[nn.Parameter] = None
         if use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
@@ -71,7 +71,7 @@ class ImageEncoderViT(nn.Module):
                     1, img_size // patch_size, img_size // patch_size, embed_dim
                 )
             )
-
+        # 生成VIT块
         self.blocks = nn.ModuleList()
         for i in range(depth):
             block = Block(
@@ -87,7 +87,8 @@ class ImageEncoderViT(nn.Module):
                 input_size=(img_size // patch_size, img_size // patch_size),
             )
             self.blocks.append(block)
-
+        # 生成neck
+        # 压缩特征维度到256
         self.neck = nn.Sequential(
             nn.Conv2d(
                 embed_dim,
@@ -107,14 +108,14 @@ class ImageEncoderViT(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.patch_embed(x)
-        if self.pos_embed is not None:
+        x = self.patch_embed(x) # patch 向量
+        if self.pos_embed is not None:  # 融合位置向量
             x = x + self.pos_embed
 
-        for blk in self.blocks:
+        for blk in self.blocks:  # 依次经过vit
             x = blk(x)
 
-        x = self.neck(x.permute(0, 3, 1, 2))
+        x = self.neck(x.permute(0, 3, 1, 2))  # 经过neck
 
         return x
 
@@ -124,16 +125,16 @@ class Block(nn.Module):
 
     def __init__(
         self,
-        dim: int,
-        num_heads: int,
-        mlp_ratio: float = 4.0,
-        qkv_bias: bool = True,
-        norm_layer: Type[nn.Module] = nn.LayerNorm,
-        act_layer: Type[nn.Module] = nn.GELU,
-        use_rel_pos: bool = False,
-        rel_pos_zero_init: bool = True,
-        window_size: int = 0,
-        input_size: Optional[Tuple[int, int]] = None,
+        dim: int,                   # 输入通道数
+        num_heads: int,             # VIT 注意头数
+        mlp_ratio: float = 4.0,     # MLP 比值
+        qkv_bias: bool = True,      # QKV 偏置
+        norm_layer: Type[nn.Module] = nn.LayerNorm,     # 归一化层
+        act_layer: Type[nn.Module] = nn.GELU,           # 激活层
+        use_rel_pos: bool = False,                      # 相对位置编码
+        rel_pos_zero_init: bool = True,                 # 初始化
+        window_size: int = 0,                           # 窗口注意力窗口大小，为0则使用全局注意力
+        input_size: Optional[Tuple[int, int]] = None,   # 输入分辨率计算相对位置参数大小
     ) -> None:
         """
         Args:

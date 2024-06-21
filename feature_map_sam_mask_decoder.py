@@ -255,7 +255,7 @@ def main():
         src_img = np.float32(canvas_img) / 255
         visualization_img = show_cam_on_image(src_img, origin_cam, use_rgb=False)
 
-        arr = image_path.split("\\")
+        arr = image_path.split("/")
         image_name = arr[len(arr) - 1]
         path = "./feature_map"
         if not os.path.exists(path):

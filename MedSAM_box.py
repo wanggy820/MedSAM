@@ -4,12 +4,9 @@ from skimage import transform
 import cv2
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset
 from torchvision import transforms
 from segment_anything.utils.transforms import ResizeLongestSide
-from utils.box import find_bboxes
-
 
 class MedSAMBox(Dataset):
     def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.1):

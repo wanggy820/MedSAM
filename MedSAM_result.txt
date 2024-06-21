@@ -17,3 +17,18 @@ U2net mean iou:0.802275, mean dice:0.883841
 U2net sam mean iou:0.848416,interaction mean dice:0.908040
 
 
+
+
+
+引用数据集相关顶会、顶刊的最优结果
+
+
+
+Sam  u2net 结果的模型
+
+
+
+
+
+
+
