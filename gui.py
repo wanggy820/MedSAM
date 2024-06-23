@@ -558,4 +558,9 @@ Sam  u2net 结合的模型
 
 思路路线
 
+
+
+
+https://github.com/MedMNIST/MedMNIST  数据集
+
 '''
