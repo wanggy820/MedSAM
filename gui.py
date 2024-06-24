@@ -563,4 +563,8 @@ Sam  u2net 结合的模型
 
 https://github.com/MedMNIST/MedMNIST  数据集
 
+https://challenge.isic-archive.com/data/#2017  ISIC
+
+https://www.fc.up.pt/addi/ph2%20database.html  皮肤镜
+
 '''
