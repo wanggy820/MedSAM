@@ -66,7 +66,7 @@ def main():
 
     logging.basicConfig(filename=model_name + '_train_' + datasets + '.log', encoding='utf-8', level=logging.DEBUG)
 
-    epoch_num = 1000
+    epoch_num = 100
     batch_size_train = 10
 
 
@@ -98,7 +98,7 @@ def main():
 
     model_file = model_dir + "u2net_bce_best_" + datasets + ".pth"
     if os.path.exists(model_file):
-        net.load_state_dict(torch.load(model_file))
+        net.load_state_dict(torch.load(model_file, map_location="cpu"))
 
     if torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -116,7 +116,7 @@ def main():
 
     best_loss = 0
     itr = 0
-    for epoch in range(10, epoch_num):
+    for epoch in range(0, epoch_num):
         net.train()
         running_loss = 0.0
         running_tar_loss = 0.0

@@ -90,7 +90,7 @@ def getDatasets(dataset_name, root_dir, data_type):
         if data_type == "val":
             data_dir = root_dir + "MICCAI2023/val/"
         if data_type == "test":
-            data_dir = root_dir + "MICCAI2023/"
+            data_dir = root_dir + "MICCAI2023/val/"
 
         image_list = sorted(glob.glob(data_dir + "image/*"))
         if data_type == "test":

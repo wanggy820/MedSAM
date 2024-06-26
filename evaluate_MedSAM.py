@@ -25,9 +25,9 @@ SAM_MODEL_TYPE = "vit_b"
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='ISBI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
 def dice_iou(pred, target, smooth=1.0):
     # 读取并转换图像为二值化形式
@@ -157,7 +157,10 @@ def interaction_u2net_predict(sam, image_path, mask_path, user_box, save_dir):
     mask_c = np.zeros((*img_3c.shape[:2], 3), dtype="uint8")
     mask_c[sam_mask != 0] = colors[0]
 
-    aaa = image_path.split("/")
+    if image_path.find("\\"):
+        aaa = image_path.split("\\")
+    else:
+        aaa = image_path.split("/")
     image_path = save_dir + '/' + aaa[len(aaa) - 1]
     io.imsave(image_path, mask_c)
     return image_path
