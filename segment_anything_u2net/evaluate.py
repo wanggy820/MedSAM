@@ -24,7 +24,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISBI', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -68,22 +68,6 @@ def dice_iou(pred, target, smooth=1.0):
     dice_coefficient = (2 * num_pixels_intersecting+smooth) / float(num_pixels_total + num_pixels_intersecting+smooth)
     iou_coefficient = (num_pixels_intersecting + smooth) / float(num_pixels_total+smooth)
     return dice_coefficient, iou_coefficient
-
-def mean_iou(preds, labels, eps=1e-6):
-    preds = normalize(threshold(preds, 0.0, 0)).squeeze(1)
-    pred_cls = (preds == 1).float()
-    label_cls = (labels == 1).float()
-    intersection = (pred_cls * label_cls).sum(1).sum(1)
-    union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
-    intersection = intersection + (union == 0)
-    union = union + (union == 0)
-    ious = (intersection + eps) / (union + eps)
-    dice = (2*intersection + eps) / (union + intersection + eps)
-
-    c = torch.where(preds == 1, 255, 0).squeeze(0).cpu()
-    image = Image.fromarray(np.uint8(c)).convert("RGB")
-    image.save("image_path.png")
-    return ious
 
 def main(opt):
     if torch.backends.mps.is_available():

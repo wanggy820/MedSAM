@@ -19,7 +19,7 @@ def build_sam(checkpoint=None):
     vit_patch_size = 16
     image_embedding_size = image_size // vit_patch_size
 
-    u2net = U2NETP(in_ch, prompt_embed_dim)
+    u2net = U2NET(in_ch, prompt_embed_dim)
     sam = U2NetSam(
         image_encoder=U2NetEncoder(u2net, image_embedding_size, image_size),
         prompt_encoder=PromptEncoder(

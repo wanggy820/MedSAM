@@ -1,5 +1,8 @@
 # 导入了一些库
 import warnings
+
+import torchvision.utils
+
 from utils.data_convert import mean_iou, compute_loss, build_dataloader_box
 
 warnings.filterwarnings(action='ignore')
@@ -12,6 +15,7 @@ import argparse
 import torch
 from torch import optim
 from segment_anything import sam_model_registry
+import torch.nn.functional as F
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
@@ -22,7 +26,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
@@ -92,9 +96,7 @@ def main(opt):
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
-
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
-
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
             # 对优化器的梯度进行归零
@@ -103,12 +105,12 @@ def main(opt):
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
-                if opt.use_box == True:
+                if opt.use_box:
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                     masks=prompt_masks)
+                                                                                     masks=None)
                 else:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                         masks=None)
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                         masks=prompt_masks)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
@@ -117,6 +119,8 @@ def main(opt):
                 sparse_prompt_embeddings=train_sparse_embeddings,
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
+            if not opt.use_box:
+                train_mask = train_mask * prompt_masks
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
@@ -126,7 +130,6 @@ def main(opt):
             train_loss_one.backward()
 
             optimizer.step()
-
             train_loss_list.append(train_loss_one.item())
             # 学习率调整
             if epoch_add == 0:
