@@ -42,7 +42,7 @@ class MedSAMBox(Dataset):
 
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         mask_256_np = cv2.resize(mask_np, (self.output_size, self.output_size), interpolation=cv2.INTER_NEAREST)
-        mask_256 = torch.as_tensor(mask_256_np).unsqueeze(0)  # torch tensor
+        mask_256 = torch.as_tensor(mask_256_np/255).unsqueeze(0)  # torch tensor
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
         mask_1024 = transform.resize(

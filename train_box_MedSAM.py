@@ -26,10 +26,10 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -119,14 +119,16 @@ def main(opt):
                 sparse_prompt_embeddings=train_sparse_embeddings,
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
+            low_res_pred = torch.sigmoid(train_mask)
+
             if not opt.use_box:
                 train_mask = train_mask * prompt_masks
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(train_mask, train_target_mask, eps=1e-6)
+            train_true_iou = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
-            train_loss_one = compute_loss(train_mask, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
 
             optimizer.step()
