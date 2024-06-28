@@ -90,7 +90,7 @@ def getDatasets(dataset_name, root_dir, data_type):
         if data_type == "val":
             data_dir = root_dir + "MICCAI2023/val/"
         if data_type == "test":
-            data_dir = root_dir + "MICCAI2023/"
+            data_dir = root_dir + "MICCAI2023/val/"
 
         image_list = sorted(glob.glob(data_dir + "image/*"))
         if data_type == "test":
@@ -219,11 +219,8 @@ def save_output(image_name, pred, d_dir):
 
     img_name = image_name.split(os.sep)[-1]
 
-    aaa = img_name.split(".")
-    bbb = aaa[0:-1]
-    imidx = bbb[0]
-    for i in range(1, len(bbb)):
-        imidx = imidx + "." + bbb[i]
+    aaa = img_name.split("/")
+    imidx = aaa[-1]
     image_path = d_dir + '/' + imidx + '.png'
     imo.save(image_path)
     return image_path

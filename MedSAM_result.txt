@@ -7,7 +7,7 @@ U2net sam mean iou:0.908734,interaction mean dice:0.951380
 Thyroid
 interaction box mean iou:0.650117,interaction mean dice:0.779144
 interaction mask+box mean iou:0.666615,interaction mean dice:0.795422
-U2net mean iou:0.660100, mean dice:0.761940
+U2net mean iou:0.675431, mean dice:0.766860
 U2net sam mean iou:0.605470,interaction mean dice:0.721078
 
 ISBI
