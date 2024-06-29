@@ -121,9 +121,6 @@ def main(opt):
                 multimask_output=False)
             low_res_pred = torch.sigmoid(train_mask)
 
-            if not opt.use_box:
-                train_mask = train_mask * prompt_masks
-
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()

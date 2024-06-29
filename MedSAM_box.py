@@ -1,17 +1,12 @@
 import random
-
-import torchvision
 from skimage import transform
 import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
-import torch.nn.functional as F
-from segment_anything.utils.transforms import ResizeLongestSide
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.05):
+    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.1):
         self.device = sam.device
         self.preprocess = sam.preprocess
 
@@ -76,6 +71,8 @@ class MedSAMBox(Dataset):
         prompt_masks = torch.where(mask_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
         #####################################
 
+        h, w = mask_np.shape[-2:]
+        size = np.array([w, h])
         data = {
             'image': img,
             'mask': mask_256,
@@ -83,5 +80,6 @@ class MedSAMBox(Dataset):
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
+            "size": size
         }
         return data

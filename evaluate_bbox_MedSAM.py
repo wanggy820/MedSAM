@@ -1,7 +1,7 @@
 import argparse
-import cv2
 import torch
 import os
+from PIL import Image
 from segment_anything import sam_model_registry
 import logging
 from utils.data_convert import build_dataloader_box, calculate_dice_iou
@@ -29,9 +29,9 @@ def main():
 
     logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', filemode="w", encoding='utf-8',
                         level=logging.DEBUG)
-    pre_dataset = "./pre_" + dataset_name + "/"
-    if not os.path.exists(pre_dataset):
-        os.mkdir(pre_dataset)
+    val_dataset = f"./val/{dataset_name}_{opt.use_box}/"
+    if not os.path.exists(val_dataset):
+        os.mkdir(val_dataset)
 
     # --------- 3. model define ---------
     model_path = "./models_box/"
@@ -56,14 +56,15 @@ def main():
             test_input = data['image'].to(device)
             prompt_box = data["prompt_box"].to(device)
             prompt_masks = data["prompt_masks"].to(device)
+            size = data["size"]
             test_encode_feature = sam.image_encoder(test_input)
 
             if opt.use_box:
                 test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                    masks=prompt_masks)
-            else:
-                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                     masks=None)
+            else:
+                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                    masks=prompt_masks)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             test_mask, test_IOU = sam.mask_decoder(
@@ -73,25 +74,25 @@ def main():
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
 
+            low_res_pred = torch.sigmoid(test_mask)
+
+            res_pre = torch.where(low_res_pred > 0.5, 255.0, 0)
             ##################################### MEDSAM
-            for iPath, mPath, box in zip(image_path, mask_path, prompt_box):
-                arr = iPath.split("/")
+            for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
+                arr = mPath.split("/")
                 image_name = arr[len(arr) - 1]
                 if image_name.find("\\"):
                     arr = image_name.split("\\")
                     image_name = arr[len(arr) - 1]
-                save_image_name = pre_dataset + image_name
+                save_image_name = val_dataset + image_name
 
-                input_size = tuple(test_input.shape[-2:])
-                mask_np = cv2.imread(mPath, cv2.IMREAD_GRAYSCALE)
-                original_size = tuple(mask_np.shape[-2:])
-                masks = sam.postprocess_masks(
-                    test_mask, input_size
-                )
-                preds = (masks > sam.mask_threshold).int()
+                # 保存为灰度图
+                predict = pre.squeeze()
+                predict_np = predict.cpu().data.numpy()
+                im = Image.fromarray(predict_np).convert('L')
+                imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
+                imo.save(save_image_name)
 
-                # preds = normalize(threshold(test_mask, 0.0, 0)).squeeze(1)
-                save_output(preds, save_image_name)
                 dice, iou = calculate_dice_iou(save_image_name, mPath)
                 interaction_total_dice += dice
                 interaction_total_iou += iou

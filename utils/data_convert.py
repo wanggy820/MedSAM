@@ -212,7 +212,7 @@ def save_output(image_name, pred, d_dir):
     predict = pred.squeeze()
     predict_np = predict.cpu().data.numpy()
 
-    im = Image.fromarray(predict_np * 255).convert('RGB')
+    im = Image.fromarray(predict_np * 255).convert('L')
 
     image = io.imread(image_name)
     imo = im.resize((image.shape[1], image.shape[0]), resample=Image.BILINEAR)
@@ -221,6 +221,6 @@ def save_output(image_name, pred, d_dir):
 
     aaa = img_name.split("/")
     imidx = aaa[-1]
-    image_path = d_dir + '/' + imidx + '.png'
+    image_path = d_dir + '/' + imidx
     imo.save(image_path)
     return image_path
