@@ -180,5 +180,4 @@ models_no_box/*
 feature_map/*
 feature_map_sam/*
 
-datasets/ISIC2017/*
-datasets/PH2Dataset/*
+datasets/*
