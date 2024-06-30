@@ -181,3 +181,4 @@ feature_map/*
 feature_map_sam/*
 
 datasets/*
+segment_anything_u2net/val/*

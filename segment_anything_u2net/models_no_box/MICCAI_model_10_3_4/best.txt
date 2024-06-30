@@ -1,0 +1,6 @@
+Experimental Day: 2024-06-29 21:34:56.824028
+mIoU: 0.9449244105418121
+epochs:10
+batch_size:3
+learning_rate:1e-05
+Data_set : MICCAI

@@ -67,8 +67,8 @@ def mean_iou(preds, labels, eps=1e-6):
     return ious
 
 def getDatasets(dataset_name, root_dir, data_type):
-    if dataset_name == "ISBI":
-        data_dir = root_dir + "ISBI/"
+    if dataset_name == "ISIC2016":
+        data_dir = root_dir + "ISIC2016/"
         if data_type == "train":
             filePath = data_dir + "ISBI2016_ISIC_Part3B_Training_GroundTruth.csv"
         else:
@@ -85,6 +85,26 @@ def getDatasets(dataset_name, root_dir, data_type):
                 mask_list.append(data_dir + "bbox/" + arr[len(arr) - 1])
             else:
                 mask_list.append(data_dir + seg)
+        return image_list, mask_list
+
+    if dataset_name == "ISIC2017":
+        data_dir = root_dir + "ISIC2017/"
+        if data_type == "train":
+            filePath = data_dir + "ISIC-2017_Training_Data_metadata.csv"
+        else:
+            filePath = data_dir + "ISIC-2017_Test_v2_Data_metadata.csv"
+
+        f = open(filePath, encoding="utf-8")
+        names = pd.read_csv(f)
+        image_list = []
+        mask_list = []
+        for img in names["image_id"]:
+            if data_type == "test":
+                image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
+                mask_list.append(data_dir + "bbox/" + img + "_segmentation.png")
+            else:
+                image_list.append(data_dir + "ISIC-2017_Training_Data/" + img + ".jpg")
+                mask_list.append(data_dir + "ISIC-2017_Training_Part1_GroundTruth/" + img + "_segmentation.png")
         return image_list, mask_list
 
     if dataset_name == "MICCAI":

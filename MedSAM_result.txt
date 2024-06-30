@@ -2,14 +2,15 @@ MICCAI
 interaction box mean iou:0.731904,interaction mean dice:0.843565
 interaction mask+box mean iou:0.788397,interaction mean dice:0.880530
 U2net mean iou:0.844449, mean dice:0.915332
-U2net sam mean iou:0.908734,interaction mean dice:0.951380
+U2net sam mean iou:0.923044,interaction mean dice:0.959204
 
 Thyroid
 interaction box mean iou:0.650117,interaction mean dice:0.779144
 evl dataset interaction mask mean iou:0.703290,interaction mean dice:0.813733
 test dataset interaction mean iou:0.652634,interaction mean dice:0.767516
 U2net mean iou:0.675431, mean dice:0.766860
-U2net sam mean iou:0.605470,interaction mean dice:0.721078
+evl dataset U2net sam mean iou:0.889056,interaction mean dice:0.939944
+evl dataset U2net sam mean iou:0.834884,interaction mean dice:0.902716
 
 ISBI
 interaction box mean iou:0.872860,interaction mean dice:0.930503

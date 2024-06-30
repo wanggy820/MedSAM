@@ -23,11 +23,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
+    parser.add_argument('--dataset_name', type=str, default='ISIC2017', help='dataset name')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=5, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -106,7 +106,7 @@ def main(opt):
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 train_encode_feature = sam.image_encoder(train_input)
-                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                      masks=prompt_masks)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU

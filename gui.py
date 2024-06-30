@@ -574,7 +574,7 @@ https://pdf.sciencedirectassets.com/271150/1-s2.0-S0010482523X0002X/1-s2.0-S0010
 确认结果 --->公式
 
 
-• IoU (Intersection Over Union) = TP/(FP + FN);
+• IoU (Intersection Over Union) = TP/(FP + FN);  论文有问题、与代码不一样  代码：TP / (TP + FP + FN)
 • DICE (dice coefficient) = 2*TP/(FP + FN + 2 * TP);
 
 

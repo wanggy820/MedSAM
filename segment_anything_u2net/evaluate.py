@@ -7,7 +7,8 @@ from torch.nn.functional import threshold, normalize
 import cv2
 import logging
 from segment_anything_u2net.build_u2net_sam import build_sam
-from utils.data_convert import build_dataloader_box
+from utils.data_convert import build_dataloader_box, build_dataloader_u2net
+
 warnings.filterwarnings(action='ignore')
 import numpy as np
 import argparse
@@ -15,6 +16,8 @@ import torch
 from torch.nn import functional as F
 from skimage import io
 from PIL import Image
+from torchvision import transforms
+from sklearn.metrics import jaccard_score
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
@@ -24,7 +27,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISBI', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -69,6 +72,35 @@ def dice_iou(pred, target, smooth=1.0):
     iou_coefficient = (num_pixels_intersecting + smooth) / float(num_pixels_total+smooth)
     return dice_coefficient, iou_coefficient
 
+# 定义转换管道
+transform = transforms.Compose([
+    transforms.ToTensor(),  # 转换为Tensor
+])
+def dice_iou1(pred, target, smooth=1.0):
+    pre_img = Image.open(pred)
+    pred = transform(pre_img)
+
+    mask_img = Image.open(target)
+    mask = transform(mask_img)
+    # 确保pred和target的大小一致
+    assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
+
+    # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
+    pred_positives = (pred == 1)
+    pre_negatives = (pred == 0)
+    mask_positives = (mask == 1)
+    mask_negatives = (mask == 0)
+
+    TP = (pred_positives * mask_positives).sum()
+    FP = (pred_positives * mask_negatives).sum()
+    FN = (pre_negatives * mask_positives).sum()
+
+    IoU = TP / (TP + FP + FN)
+    DICE = 2 * IoU / (IoU + 1)
+
+    return DICE, IoU
+
+
 def main(opt):
     if torch.backends.mps.is_available():
         device = torch.device("mps")
@@ -81,7 +113,7 @@ def main(opt):
     print(device, 'is available')
     print("Loading model...")
 
-    model_path = "./models_box/"
+    model_path = "./models_no_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
 
     dataset_name = opt.dataset_name
@@ -92,7 +124,7 @@ def main(opt):
     sam.eval()
 
     print('val Start')
-    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader_u2net(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
 
 
     interaction_dir = f'./val/{opt.dataset_name}'
@@ -101,7 +133,7 @@ def main(opt):
     interaction_total_dice = 0
     interaction_total_iou = 0
     # 循环进行模型的多轮训练
-    for index, val_data in enumerate(dataloaders['val']):
+    for index, val_data in enumerate(dataloaders['test']):
         # 将训练数据移到指定设备，这里是GPU
         val_input = val_data['image'].to(device)
 
@@ -152,7 +184,10 @@ def main(opt):
         else:
             aaa = image_path.split("/")
         image_path = interaction_dir + '/' + aaa[len(aaa) - 1]
-        torchvision.utils.save_image(res, image_path)
+        predict = res.squeeze()
+        predict_np = predict.cpu().data.numpy()
+        im = Image.fromarray(predict_np).convert('L')
+        im.save(image_path)
 
         interaction_dice, interaction_iou = dice_iou(image_path, mask_path)
         interaction_total_dice += interaction_dice

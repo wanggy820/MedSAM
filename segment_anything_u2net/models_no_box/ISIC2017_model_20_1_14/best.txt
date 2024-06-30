@@ -1,0 +1,6 @@
+Experimental Day: 2024-06-30 10:18:27.089589
+mIoU: 0.9868143640458584
+epochs:20
+batch_size:1
+learning_rate:1e-05
+Data_set : ISIC2017

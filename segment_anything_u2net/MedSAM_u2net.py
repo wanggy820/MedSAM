@@ -9,7 +9,7 @@ from torchvision import transforms
 from segment_anything.utils.transforms import ResizeLongestSide
 
 class MedSAM_U2net(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.1):
+    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.01):
         self.device = sam.device
         self.image_list = image_list
         self.mask_list = mask_list

@@ -14,7 +14,7 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -38,7 +38,7 @@ def main():
     if opt.use_box == False:
         model_path = "./models_no_box/"
 
-    checkpoint = f"./{model_path}{dataset_name}_sam_best.pth"
+    checkpoint = f"{model_path}{dataset_name}_sam_best.pth"
     # set up model
     sam = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
     sam.eval()
