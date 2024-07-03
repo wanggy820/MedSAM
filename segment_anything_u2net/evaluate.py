@@ -1,13 +1,9 @@
 # 导入了一些库
 import os
 import warnings
-
-import torchvision
-from torch.nn.functional import threshold, normalize
-import cv2
 import logging
 from segment_anything_u2net.build_u2net_sam import build_sam
-from utils.data_convert import build_dataloader_box, build_dataloader_u2net
+from utils.data_convert import build_dataloader_box, build_dataloader_u2net, calculate_dice_iou
 
 warnings.filterwarnings(action='ignore')
 import numpy as np
@@ -16,8 +12,6 @@ import torch
 from torch.nn import functional as F
 from skimage import io
 from PIL import Image
-from torchvision import transforms
-from sklearn.metrics import jaccard_score
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
@@ -27,7 +21,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='ISIC2016', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -51,55 +45,6 @@ def create_clear_dir(dir):
             if os.path.isfile(file_path):
                 # 如果是文件则直接删除
                 os.remove(file_path)
-
-def dice_iou(pred, target, smooth=1.0):
-    # 读取并转换图像为二值化形式
-    image1 = cv2.imread(pred, 0)
-
-    image2 = cv2.imread(target, 0)
-    _, image1_binary = cv2.threshold(image1, 127, 255, cv2.THRESH_BINARY)
-    _, image2_binary = cv2.threshold(image2, 127, 255, cv2.THRESH_BINARY)
-    if image1_binary.shape != image2_binary.shape:
-        raise ValueError("image1_binary.shape != image2_binary.shape")
-    # 计算交集和并集
-    intersection = cv2.bitwise_and(image1_binary, image2_binary)
-    union = cv2.addWeighted(image1_binary, 0.5, image2_binary, 0.5, 0)
-
-    # 计算DICE系数
-    num_pixels_intersecting = cv2.countNonZero(intersection)
-    num_pixels_total = cv2.countNonZero(union)
-    dice_coefficient = (2 * num_pixels_intersecting+smooth) / float(num_pixels_total + num_pixels_intersecting+smooth)
-    iou_coefficient = (num_pixels_intersecting + smooth) / float(num_pixels_total+smooth)
-    return dice_coefficient, iou_coefficient
-
-# 定义转换管道
-transform = transforms.Compose([
-    transforms.ToTensor(),  # 转换为Tensor
-])
-def dice_iou1(pred, target, smooth=1.0):
-    pre_img = Image.open(pred)
-    pred = transform(pre_img)
-
-    mask_img = Image.open(target)
-    mask = transform(mask_img)
-    # 确保pred和target的大小一致
-    assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
-
-    # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
-    pred_positives = (pred == 1)
-    pre_negatives = (pred == 0)
-    mask_positives = (mask == 1)
-    mask_negatives = (mask == 0)
-
-    TP = (pred_positives * mask_positives).sum()
-    FP = (pred_positives * mask_negatives).sum()
-    FN = (pre_negatives * mask_positives).sum()
-
-    IoU = TP / (TP + FP + FN)
-    DICE = 2 * IoU / (IoU + 1)
-
-    return DICE, IoU
-
 
 def main(opt):
     if torch.backends.mps.is_available():
@@ -132,8 +77,8 @@ def main(opt):
 
     interaction_total_dice = 0
     interaction_total_iou = 0
-    # 循环进行模型的多轮训练
-    for index, val_data in enumerate(dataloaders['test']):
+    dataloader = dataloaders['test']
+    for index, val_data in enumerate(dataloader):
         # 将训练数据移到指定设备，这里是GPU
         val_input = val_data['image'].to(device)
 
@@ -144,7 +89,7 @@ def main(opt):
         image_path = val_data['image_path'][0]
         mask_path = val_data['mask_path'][0]
 
-        print("image_path:", image_path)
+        print(f"index:{index + 1}/{len(dataloader)},image_path:{image_path}")
         logging.info("image_path:{}".format(image_path))
         img_np = io.imread(image_path)
         if len(img_np.shape) == 2:
@@ -189,7 +134,7 @@ def main(opt):
         im = Image.fromarray(predict_np).convert('L')
         im.save(image_path)
 
-        interaction_dice, interaction_iou = dice_iou(image_path, mask_path)
+        interaction_dice, interaction_iou = calculate_dice_iou(image_path, mask_path)
         interaction_total_dice += interaction_dice
         interaction_total_iou += interaction_iou
 
@@ -199,8 +144,6 @@ def main(opt):
         logging.info("interaction iou:{:.6f}, interaction dice:{:.6f}".format(interaction_iou, interaction_dice))
         logging.info("interaction mean iou:{:.6f},interaction mean dice:{:.6f}"
                      .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
-
-
 
 
 if __name__ == '__main__':

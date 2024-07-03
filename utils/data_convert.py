@@ -6,12 +6,10 @@ import torch
 import torch.nn.functional as F
 from MedSAM_Dataset import MedSAM_Dataset
 from torch.utils.data import DataLoader
-from torch.nn.functional import threshold, normalize
 from skimage import io
 from PIL import Image
 from MedSAM_box import MedSAMBox
 from torchvision import transforms
-
 from segment_anything_u2net.MedSAM_u2net import MedSAM_U2net
 
 
@@ -102,6 +100,9 @@ def getDatasets(dataset_name, root_dir, data_type):
             if data_type == "test":
                 image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
                 mask_list.append(data_dir + "bbox/" + img + "_segmentation.png")
+            elif data_type == "val":
+                image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
+                mask_list.append(data_dir + "ISIC-2017_Test_v2_Part1_GroundTruth/" + img + "_segmentation.png")
             else:
                 image_list.append(data_dir + "ISIC-2017_Training_Data/" + img + ".jpg")
                 mask_list.append(data_dir + "ISIC-2017_Training_Part1_GroundTruth/" + img + "_segmentation.png")
@@ -208,7 +209,29 @@ transform = transforms.Compose([
     transforms.ToTensor(),  # 转换为Tensor
 ])
 
+def calculate_dice_iou1(pred, target, smooth=1e-6):
+    pre_img = Image.open(pred)
+    pred = transform(pre_img)
 
+    mask_img = Image.open(target)
+    mask = transform(mask_img)
+    # 确保pred和target的大小一致
+    assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
+
+    # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
+    pred_positives = (pred == 1)
+    pre_negatives = (pred == 0)
+    mask_positives = (mask == 1)
+    mask_negatives = (mask == 0)
+
+    TP = (pred_positives * mask_positives).sum()
+    FP = (pred_positives * mask_negatives).sum()
+    FN = (pre_negatives * mask_positives).sum()
+
+    IoU = (TP + smooth) / (TP + FP + FN + smooth)
+    DICE = 2 * IoU / (IoU + 1)
+
+    return DICE, IoU
 def calculate_dice_iou(pred_path, mask_path, smooth=1e-5):
     pre_img = Image.open(pred_path)
     pred = transform(pre_img)
