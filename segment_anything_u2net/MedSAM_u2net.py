@@ -9,10 +9,11 @@ from torchvision import transforms
 from segment_anything.utils.transforms import ResizeLongestSide
 
 class MedSAM_U2net(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.01):
+    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.01):
         self.device = sam.device
         self.image_list = image_list
         self.mask_list = mask_list
+        self.auxiliary_list = auxiliary_list
 
         self.transform = ResizeLongestSide(1024)
         self.preprocess = sam.preprocess
@@ -27,6 +28,7 @@ class MedSAM_U2net(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
         mask_path = self.mask_list[idx]  # 读取mask data 路径
+        auxiliary_path = self.auxiliary_list[idx] # 读取辅助 mask data路径
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
@@ -40,28 +42,31 @@ class MedSAM_U2net(Dataset):
         #####################################
 
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
-        H, W = mask_np.shape
+        mask = torch.as_tensor(mask_np/255)  # torch tensor
+        mask = mask.unsqueeze(0)
+        #####################################
+
+        auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        H, W = auxiliary_np.shape
         h = int(H * self.ratio)
         w = int(W * self.ratio)
-        mask_ratio = transform.resize(
-            mask_np, (h, w), order=3, preserve_range=True, anti_aliasing=True
+        auxiliary_ratio = transform.resize(
+            auxiliary_np, (h, w), order=3, preserve_range=True, anti_aliasing=True
         ).astype(np.uint8)
 
         top = int(h*(self.ratio - 1)/2)
         bottom = top + H
         left = int(w * (self.ratio - 1) / 2)
         right = left + W
-        mask_ratio_np = mask_ratio[top:bottom, left:right]
-        mask_ratio_np += mask_np
-        mask_ratio_np = mask_ratio_np // 2 + mask_ratio_np % 2
-        mask_ratio_masks = torch.as_tensor(mask_ratio_np, dtype=torch.float32)  # torch tensor
-        mask_ratio_masks = mask_ratio_masks.unsqueeze(0)
+        auxiliary_ratio_np = auxiliary_ratio[top:bottom, left:right]
+        auxiliary_ratio_np += auxiliary_np
+        auxiliary_ratio_np = auxiliary_ratio_np // 2 + auxiliary_ratio_np % 2
+        auxiliary_ratio_masks = torch.as_tensor(auxiliary_ratio_np, dtype=torch.float32)  # torch tensor
+        auxiliary_ratio_masks = auxiliary_ratio_masks.unsqueeze(0)
 
-        mask = torch.as_tensor(mask_np/255)  # torch tensor
-        mask = mask.unsqueeze(0)
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
-        y_indices, x_indices = np.where(mask_np > 0)
+        y_indices, x_indices = np.where(auxiliary_np > 0)
         x_min, x_max = np.min(x_indices), np.max(x_indices)
         y_min, y_max = np.min(y_indices), np.max(y_indices)
         x_min = max(0, x_min - random.randint(0, self.bbox_shift))
@@ -73,13 +78,13 @@ class MedSAM_U2net(Dataset):
         box_1024 = box_np / np.array([W, H, W, H]) * 1024
         box_1024 = box_1024.astype(np.int16)
         #####################################
-        mask_256 = transform.resize(
-            mask_np, (256, 256), order=3, preserve_range=True, anti_aliasing=True
+        auxiliary_256 = transform.resize(
+            auxiliary_np, (256, 256), order=3, preserve_range=True, anti_aliasing=True
         ).astype(np.uint8)
-        mask_256 = (mask_256 - mask_256.min()) / np.clip(
-            mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
+        auxiliary_256 = (auxiliary_256 - auxiliary_256.min()) / np.clip(
+            auxiliary_256.max() - auxiliary_256.min(), a_min=1e-8, a_max=None
         )  # normalize to [0, 1], (H, W, 1)
-        prompt_masks = np.expand_dims(mask_256, axis=0).astype(np.float32)
+        prompt_masks = np.expand_dims(auxiliary_256, axis=0).astype(np.float32)
 
         data = {
             'image': img,
@@ -88,6 +93,6 @@ class MedSAM_U2net(Dataset):
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
-            "mask_ratio_masks": mask_ratio_masks
+            "auxiliary_ratio_masks": auxiliary_ratio_masks
         }
         return data

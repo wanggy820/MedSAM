@@ -14,10 +14,11 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='ISIC2016', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
+    parser.add_argument('--data_type', type=str, default='test', help='data directory')
     parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser
 
@@ -39,6 +40,7 @@ def main():
         model_path = "./models_no_box/"
 
     checkpoint = f"{model_path}{dataset_name}_sam_best.pth"
+    print(f"starting {opt.data_type}")
     # set up model
     sam = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
     sam.eval()
@@ -47,7 +49,7 @@ def main():
         # --------- 4. inference for each image ---------
         interaction_total_dice = 0
         interaction_total_iou = 0
-        dataloader = dataloaders['val']
+        dataloader = dataloaders[opt.data_type]
         for index, data in enumerate(dataloader):
             image_path = data["image_path"]
             print(f"index:{index + 1}/{len(dataloader)},image_path:{image_path}")

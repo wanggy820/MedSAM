@@ -23,7 +23,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISIC2017', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='ISIC2016', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -99,7 +99,7 @@ def main(opt):
 
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
-            mask_ratio_masks = train_data["mask_ratio_masks"].to(device)
+            auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
@@ -125,7 +125,7 @@ def main(opt):
                 mode="bilinear",
                 align_corners=False,
             )
-            low_res = low_res * torch.where(mask_ratio_masks > 0, 1, 0)
+            low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
 
             # c2 = low_res.squeeze().cpu()
             # c3 = torch.where(c2 > 0.5, 255.0, 0.0)

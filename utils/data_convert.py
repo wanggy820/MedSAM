@@ -58,13 +58,16 @@ def mean_iou(preds, labels, eps=1e-6):
     label_cls = (labels > 0.5).float()
     intersection = (pred_cls * label_cls).sum(1).sum(1)
     union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
-    intersection = intersection + (union == 0)
-    union = union + (union == 0)
+    intersection = intersection + (union == 0) + eps
+    union = union + (union == 0) + eps
     ious = intersection / union
 
     return ious
 
 def getDatasets(dataset_name, root_dir, data_type):
+    image_list = []
+    mask_list = []
+    auxiliary_list = []
     if dataset_name == "ISIC2016":
         data_dir = root_dir + "ISIC2016/"
         if data_type == "train":
@@ -74,91 +77,108 @@ def getDatasets(dataset_name, root_dir, data_type):
 
         f = open(filePath, encoding="utf-8")
         names = pd.read_csv(f)
-        image_list = []
-        mask_list = []
         for img, seg in zip(names["img"], names["seg"]):
             image_list.append(data_dir + img)
+            mask_list.append(data_dir + seg)
             if data_type == "test":
                 arr = img.split("/")
-                mask_list.append(data_dir + "bbox/" + arr[len(arr) - 1])
+                auxiliary_list.append(data_dir + "bbox/" + arr[len(arr) - 1])
             else:
-                mask_list.append(data_dir + seg)
-        return image_list, mask_list
+                auxiliary_list.append(data_dir + seg)
+        return image_list, mask_list, auxiliary_list
 
     if dataset_name == "ISIC2017":
         data_dir = root_dir + "ISIC2017/"
         if data_type == "train":
             filePath = data_dir + "ISIC-2017_Training_Data_metadata.csv"
+        elif data_type == "val":
+            filePath = data_dir + "ISIC-2017_Validation_Data_metadata.csv"
         else:
             filePath = data_dir + "ISIC-2017_Test_v2_Data_metadata.csv"
-
         f = open(filePath, encoding="utf-8")
         names = pd.read_csv(f)
-        image_list = []
-        mask_list = []
         for img in names["image_id"]:
-            if data_type == "test":
-                image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
-                mask_list.append(data_dir + "bbox/" + img + "_segmentation.png")
-            elif data_type == "val":
-                image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
-                mask_list.append(data_dir + "ISIC-2017_Test_v2_Part1_GroundTruth/" + img + "_segmentation.png")
-            else:
+            if data_type == "train":
                 image_list.append(data_dir + "ISIC-2017_Training_Data/" + img + ".jpg")
                 mask_list.append(data_dir + "ISIC-2017_Training_Part1_GroundTruth/" + img + "_segmentation.png")
-        return image_list, mask_list
+                auxiliary_list.append(data_dir + "ISIC-2017_Training_Part1_GroundTruth/" + img + "_segmentation.png")
+            elif data_type == "val":
+                image_list.append(data_dir + "ISIC-2017_Validation_Data/" + img + ".jpg")
+                mask_list.append(data_dir + "ISIC-2017_Validation_Part1_GroundTruth/" + img + "_segmentation.png")
+                auxiliary_list.append(data_dir + "ISIC-2017_Validation_Part1_GroundTruth/" + img + "_segmentation.png")
+            else:
+                image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
+                mask_list.append(data_dir + "ISIC-2017_Test_v2_Part1_GroundTruth/" + img + "_segmentation.png")
+                auxiliary_list.append(data_dir + "bbox/" + img + "_segmentation.png")
+        return image_list, mask_list, auxiliary_list
+
+    if dataset_name == "ISIC2018":
+        data_dir = root_dir + "ISIC2018/"
+
+        if data_type == "train":
+            image_list = sorted(glob.glob(data_dir + "ISIC2018_Task1-2_Training_Input/*.jpg"))
+            mask_list = sorted(glob.glob(data_dir + "ISIC2018_Task1_Training_GroundTruth/*.png"))
+            auxiliary_list = mask_list
+        elif data_type == "val":
+            image_list = sorted(glob.glob(data_dir + "ISIC2018_Task1-2_Validation_Input/*.jpg"))
+            mask_list = sorted(glob.glob(data_dir + "ISIC2018_Task1_Validation_GroundTruth/*.png"))
+            auxiliary_list = mask_list
+        else:
+            image_list = sorted(glob.glob(data_dir + "ISIC2018_Task1-2_Test_Input/*.jpg"))
+            mask_list = sorted(glob.glob(data_dir + "ISIC2018_Task1_Test_GroundTruth/*.png"))
+            auxiliary_list = sorted(glob.glob(data_dir + "bbox/*.png"))
+
+        return image_list, mask_list, auxiliary_list
 
     if dataset_name == "MICCAI":
         if data_type == "train":
             data_dir = root_dir + "MICCAI2023/train/"
-        if data_type == "val":
-            data_dir = root_dir + "MICCAI2023/val/"
-        if data_type == "test":
+        else:
             data_dir = root_dir + "MICCAI2023/val/"
 
         image_list = sorted(glob.glob(data_dir + "image/*"))
+        mask_list = sorted(glob.glob(data_dir + "mask/*"))
         if data_type == "test":
-            mask_list = sorted(glob.glob(data_dir + "bbox/*"))
+            auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
         else:
-            mask_list = sorted(glob.glob(data_dir + "mask/*"))
-        return image_list, mask_list
+            auxiliary_list = sorted(glob.glob(data_dir + "mask/*"))
+        return image_list, mask_list, auxiliary_list
 
     if dataset_name == "Thyroid":
         data_dir = root_dir + "Thyroid_Dataset/tg3k/"
 
         with open(data_dir + "tg3k-trainval.json", 'r', encoding='utf-8') as fp:
             data = json.load(fp)
-            if data_type == "train":
-                names = data["train"]
-            else:
+            if data_type == "test":
                 names = data["val"]
+            else:
+                names = data[data_type]
         format = ".jpg"
-        image_list = []
-        mask_list = []
         for name in names:
             image_path = data_dir + "Thyroid-image/" + "{:04d}".format(name) + format
+            mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
             if data_type == "test":
-                mask_path = data_dir + "bbox/" + "{:04d}".format(name) + format
+                auxiliary_path = data_dir + "bbox/" + "{:04d}".format(name) + format
             else:
-                mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
+                auxiliary_path = mask_path
             image_list.append(image_path)
             mask_list.append(mask_path)
-        return image_list, mask_list
+            auxiliary_list.append(auxiliary_path)
+        return image_list, mask_list, auxiliary_list
 
     if dataset_name == "DRIVE":
         if data_type == "train":
             data_dir = root_dir + "DRIVE/training/"
-        if data_type == "val":
+        else:
             data_dir = root_dir + "DRIVE/test/"
-        if data_type == "test":
-            data_dir = root_dir + "DRIVE/bbox/"
 
         image_list = glob.glob(data_dir + "/images/*")
+        mask_list = glob.glob(data_dir + "/mask/*")
         if data_type == "test":
-            mask_list = glob.glob(data_dir + "/bbox/*")
+            auxiliary_list = glob.glob(root_dir + "DRIVE/bbox/*")
         else:
-            mask_list = glob.glob(data_dir + "/mask/*")
-        return image_list, mask_list
+            auxiliary_list = mask_list
+        return image_list, mask_list, auxiliary_list
 
 
 # 数据加载
@@ -179,8 +199,8 @@ def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
 def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
-        image_list, mask_list = getDatasets(dataset_name, data_dir, key)
-        datasets = MedSAMBox(sam, image_list, mask_list, bbox_shift=20)
+        image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
+        datasets = MedSAMBox(sam, image_list, mask_list, auxiliary_list, bbox_shift=20)
         dataloaders[key] = DataLoader(
             datasets,
             batch_size=batch_size,
@@ -193,8 +213,8 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
 def build_dataloader_u2net(sam, dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
-        image_list, mask_list = getDatasets(dataset_name, data_dir, key)
-        datasets = MedSAM_U2net(sam, image_list, mask_list, bbox_shift=20)
+        image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
+        datasets = MedSAM_U2net(sam, image_list, mask_list, auxiliary_list, bbox_shift=20)
         dataloaders[key] = DataLoader(
             datasets,
             batch_size=batch_size,

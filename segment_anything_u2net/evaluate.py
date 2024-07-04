@@ -21,16 +21,12 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISIC2016', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
-    parser.add_argument('--warmup_steps', type=int, default=250, help='')
-    parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=30, help='train epcoh')
-    parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
-    parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='../datasets/', help='data directory')
+    parser.add_argument('--data_type', type=str, default='val', help='data directory')
     return parser.parse_known_args()[0]
 
 def create_clear_dir(dir):
@@ -68,7 +64,7 @@ def main(opt):
     sam = sam.to(device=device)
     sam.eval()
 
-    print('val Start')
+    print(f"starting {opt.data_type}")
     dataloaders = build_dataloader_u2net(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
 
 
@@ -77,7 +73,7 @@ def main(opt):
 
     interaction_total_dice = 0
     interaction_total_iou = 0
-    dataloader = dataloaders['test']
+    dataloader = dataloaders[opt.data_type]
     for index, val_data in enumerate(dataloader):
         # 将训练数据移到指定设备，这里是GPU
         val_input = val_data['image'].to(device)
@@ -85,7 +81,7 @@ def main(opt):
         val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
         prompt_box = val_data["prompt_box"].to(device)
         prompt_masks = val_data["prompt_masks"].to(device)
-        mask_ratio_masks = val_data["mask_ratio_masks"].to(device)
+        auxiliary_ratio_masks = val_data["auxiliary_ratio_masks"].to(device)
         image_path = val_data['image_path'][0]
         mask_path = val_data['mask_path'][0]
 
@@ -120,7 +116,7 @@ def main(opt):
             mode="bilinear",
             align_corners=False,
         )
-        low_res = low_res * torch.where(mask_ratio_masks > 0, 1, 0)
+        low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
         low_res = low_res.squeeze().cpu()
         res = torch.where(low_res > 0.5, 255.0, 0.0)
 

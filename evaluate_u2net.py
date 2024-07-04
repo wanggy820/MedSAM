@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import getDatasets, normPRED, save_output
+from utils.data_convert import getDatasets, normPRED, save_output, mean_iou
 import argparse
 import torch
 warnings.filterwarnings(action='ignore')
@@ -19,7 +19,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='Thyroid', help='model name')
+    parser.add_argument('--datasets', type=str, default='ISIC2017', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -48,7 +48,7 @@ def main(opt):
     print("Loading model...")
 
     datasets = opt.datasets
-    image_list, mask_list = getDatasets(datasets, opt.data_dir, "val")
+    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "test")
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -75,11 +75,19 @@ def main(opt):
             labels = data["label"]
             #####################################  U2Net
             inputs = inputs.type(torch.FloatTensor).to(device)
-            d1, d2, d3, d4, d5, d6, d7 = net(inputs)
-            u2net_dice, u2net_iou = dice_iou_function(d1.cpu().numpy(), labels.cpu().numpy())
+            labels = labels.type(torch.FloatTensor).to(device)
+            a = (labels == 1).sum()
+            c = (labels > 1).sum()
+            d0, d1, d2, d3, d4, d5, d6 = net(inputs)
+            d0 = torch.softmax(d0, dim=3)
+            # d0 = torch.where(d0 > 0.5, 1.0, 0.0)
+            b = (d0 >= 0.005).sum()
+            iou = mean_iou(d0, labels)
+            u2net_dice, u2net_iou = dice_iou_function(d0.cpu().numpy(), labels.cpu().numpy())
             total_dice += u2net_dice
             total_iou += u2net_iou
-            print("inferencing:{},u2net_dice:{},u2net_iou:{}".format(inferencing, u2net_dice, u2net_iou))
+            print("index:{}/{}, inferencing:{}, u2net_dice:{}, u2net_iou:{}".
+                  format(index, len(test_loader), inferencing, u2net_dice, u2net_iou))
 
             arr = inferencing.split("/")
             path = ""
@@ -95,7 +103,7 @@ def main(opt):
                 # 如果文件夹不存在，则创建文件夹
                 os.makedirs(path)
 
-            pred = d1[0, 0, :, :]
+            pred = d0[0, 0, :, :]
             pred = normPRED(pred)
             save_output(inferencing, pred, path)
     print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))

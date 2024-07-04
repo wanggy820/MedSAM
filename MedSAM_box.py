@@ -6,12 +6,13 @@ import torch
 from torch.utils.data import Dataset
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, bbox_shift=0, ratio=1.1):
+    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02):
         self.device = sam.device
         self.preprocess = sam.preprocess
 
         self.image_list = image_list
         self.mask_list = mask_list
+        self.auxiliary_list = auxiliary_list
         self.img_size = sam.image_encoder.img_size
         self.output_size = 256
         self.bbox_shift = bbox_shift
@@ -23,6 +24,7 @@ class MedSAMBox(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
         mask_path = self.mask_list[idx]  # 读取mask data 路径
+        auxiliary_path = self.auxiliary_list[idx]
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
@@ -40,11 +42,13 @@ class MedSAMBox(Dataset):
         mask_256 = torch.as_tensor(mask_256_np/255).unsqueeze(0)  # torch tensor
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
-        mask_1024 = transform.resize(
-            mask_np, (self.img_size, self.img_size), order=1, preserve_range=True, anti_aliasing=True
+        auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        auxiliary_256_np = cv2.resize(auxiliary_np, (self.output_size, self.output_size), interpolation=cv2.INTER_NEAREST)
+        auxiliary_1024 = transform.resize(
+            auxiliary_np, (self.img_size, self.img_size), order=1, preserve_range=True, anti_aliasing=True
         ).astype(np.uint8)
 
-        y_indices, x_indices = np.where(mask_1024 > 0)
+        y_indices, x_indices = np.where(auxiliary_1024 > 0)
         x_min, x_max = np.min(x_indices), np.max(x_indices)
         y_min, y_max = np.min(y_indices), np.max(y_indices)
         x_min = max(0, x_min - random.randint(0, self.bbox_shift))
@@ -56,19 +60,19 @@ class MedSAMBox(Dataset):
 
         #####################################
         size = int(self.output_size * self.ratio)
-        mask_ratio = transform.resize(
-            mask_np, (size, size), order=1, preserve_range=True, anti_aliasing=True
+        auxiliary_ratio = transform.resize(
+            auxiliary_np, (size, size), order=1, preserve_range=True, anti_aliasing=True
         ).astype(np.uint8)
 
         top = int(size * (self.ratio - 1) / 2)
         bottom = top + self.output_size
         left = int(size * (self.ratio - 1) / 2)
         right = left + self.output_size
-        mask_ratio_np = mask_ratio[top:bottom, left:right]
-        mask_ratio_np += mask_256_np
-        mask_ratio_np = mask_ratio_np // 2 + mask_ratio_np % 2
-        mask_ratio_masks = torch.as_tensor(mask_ratio_np, dtype=torch.float32)  # torch tensor
-        prompt_masks = torch.where(mask_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
+        auxiliary_ratio_np = auxiliary_ratio[top:bottom, left:right]
+        auxiliary_ratio_np += auxiliary_256_np
+        auxiliary_ratio_np = auxiliary_ratio_np // 2 + auxiliary_ratio_np % 2
+        auxiliary_ratio_masks = torch.as_tensor(auxiliary_ratio_np, dtype=torch.float32)  # torch tensor
+        prompt_masks = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
         #####################################
 
         h, w = mask_np.shape[-2:]
