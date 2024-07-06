@@ -1,7 +1,7 @@
 MICCAI   由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.1
 U2net mean iou:0.844449, mean dice:0.915332
-interaction(val dataset) box mean iou:0.731904,interaction mean dice:0.843565
-interaction(test dataset) box mean iou:0.161111,interaction mean dice:0.268741
+interaction(val dataset) box mean iou:0.729782,interaction mean dice:0.842928
+interaction(test dataset) box mean iou:0.737624,interaction mean dice:0.847708
 interaction(val dataset) mask mean iou:0.794875,interaction mean dice:0.885317
 interaction(test dataset) mean iou:0.778984,interaction mean dice:0.875323
 U2net sam(val dataset) mean iou:0.923044,interaction mean dice:0.959204  ratio=1.01
