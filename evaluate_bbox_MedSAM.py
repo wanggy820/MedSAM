@@ -14,12 +14,12 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--data_type', type=str, default='test', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
 
 

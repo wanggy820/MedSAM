@@ -1,6 +1,7 @@
 MICCAI   由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.1
 U2net mean iou:0.844449, mean dice:0.915332
 interaction(val dataset) box mean iou:0.731904,interaction mean dice:0.843565
+interaction(test dataset) box mean iou:0.161111,interaction mean dice:0.268741
 interaction(val dataset) mask mean iou:0.794875,interaction mean dice:0.885317
 interaction(test dataset) mean iou:0.778984,interaction mean dice:0.875323
 U2net sam(val dataset) mean iou:0.923044,interaction mean dice:0.959204  ratio=1.01
@@ -9,6 +10,7 @@ U2net sam(test dataset) mean iou:0.829970,interaction mean dice:0.905960
 Thyroid  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
 U2net mean iou:0.675431, mean dice:0.766860
 interaction(val dataset) box mean iou:0.650117,interaction mean dice:0.779144
+interaction(test dataset) box mean iou:0.239660,interaction mean dice:0.339834
 interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
 interaction(test dataset) mean iou:0.590023,interaction mean dice:0.703886
 U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
@@ -24,17 +26,21 @@ U2net sam(val dataset) mean iou:0.965713,interaction mean dice:0.982432
 ISIC2016 由于没有test mask, 用val代替,但mask用的是u2net的预测结果
 U2net mean iou:0.802275, mean dice:0.883841
 interaction(val dataset) box mean iou:0.872860,interaction mean dice:0.930503
-interaction(val dataset) mask mean iou:0.921724,interaction mean dice:0.958224 ----->windows
-interaction(val dataset) mask mean iou:0.765607,interaction mean dice:0.848930    ------> mac 数据没训练完整
-interaction(test dataset) mask mean iou:0.764427,interaction mean dice:0.848166    ------> mac 数据没训练完整
+interaction(test dataset) box mean iou:0.750271,interaction mean dice:0.839883
+interaction(val dataset) mask mean iou:0.910636,interaction mean dice:0.952284     ratio=1.02
+interaction(test dataset) mask mean iou:0.841176,interaction mean dice:0.908380
 U2net sam(val dataset) mean iou:0.848416,interaction mean dice:0.908040
-U2net sam(test dataset) mean iou:0.841831,interaction mean dice:0.900945
+U2net sam(test dataset) mean iou:0.744499,interaction mean dice:0.838362
 
 ISIC2017
-
-interaction(val dataset) mask mean iou:0.862284,interaction mean dice:0.924991
-
+U2net mean iou:0.679987, mean dice:0.774312
+interaction(val dataset) box mean iou:0.851025,interaction mean dice:0.906765
+interaction(test dataset) box mean iou:0.744482,interaction mean dice:0.838352
+interaction(val dataset) mask mean iou:0.862284,interaction mean dice:0.924991    ratio=1.02
+interaction(test dataset) mask mean iou:0.691051,interaction mean dice:0.782873
 U2net sam(val dataset) mean iou:0.974382,interaction mean dice:0.986920
+U2net sam(test dataset) mean iou:0.691048,interaction mean dice:0.782871
+
 
 
 

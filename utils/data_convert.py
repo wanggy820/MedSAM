@@ -54,8 +54,8 @@ def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
 def mean_iou(preds, labels, eps=1e-6):
     preds = preds.squeeze(1)
     labels = labels.squeeze(1)
-    pred_cls = (preds > 0.5).float()
-    label_cls = (labels > 0.5).float()
+    pred_cls = (preds >= 0.5).float()
+    label_cls = (labels >= 0.5).float()
     intersection = (pred_cls * label_cls).sum(1).sum(1)
     union = (1 - (1 - pred_cls) * (1 - label_cls)).sum(1).sum(1)
     intersection = intersection + (union == 0) + eps
@@ -109,7 +109,7 @@ def getDatasets(dataset_name, root_dir, data_type):
             else:
                 image_list.append(data_dir + "ISIC-2017_Test_v2_Data/" + img + ".jpg")
                 mask_list.append(data_dir + "ISIC-2017_Test_v2_Part1_GroundTruth/" + img + "_segmentation.png")
-                auxiliary_list.append(data_dir + "bbox/" + img + "_segmentation.png")
+                auxiliary_list.append(data_dir + "bbox/" + img + ".jpg")
         return image_list, mask_list, auxiliary_list
 
     if dataset_name == "ISIC2018":
@@ -287,7 +287,7 @@ def normPRED(d):
 
 
 def save_output(image_name, pred, d_dir):
-    pred = normPRED(pred)
+    # pred = normPRED(pred)
     predict = pred.squeeze()
     predict_np = predict.cpu().data.numpy()
 

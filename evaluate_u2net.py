@@ -1,12 +1,16 @@
 # 导入了一些库
 import os
 import warnings
+
+import numpy as np
+import torchvision.utils
+from PIL import Image
 warnings.filterwarnings(action='ignore')
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import getDatasets, normPRED, save_output, mean_iou
+from utils.data_convert import getDatasets, save_output, calculate_dice_iou
 import argparse
 import torch
 warnings.filterwarnings(action='ignore')
@@ -70,42 +74,46 @@ def main(opt):
     total_iou = 0
     for index, data in enumerate(test_loader):
         with torch.no_grad():
-            inferencing = image_list[index]
+            imidx = data["imidx"].item()
+
+            image_path = image_list[imidx]
+            mask_path = mask_list[imidx]
             inputs = data["image"]
-            labels = data["label"]
             #####################################  U2Net
             inputs = inputs.type(torch.FloatTensor).to(device)
-            labels = labels.type(torch.FloatTensor).to(device)
-            a = (labels == 1).sum()
-            c = (labels > 1).sum()
             d0, d1, d2, d3, d4, d5, d6 = net(inputs)
-            d0 = torch.softmax(d0, dim=3)
-            # d0 = torch.where(d0 > 0.5, 1.0, 0.0)
-            b = (d0 >= 0.005).sum()
-            iou = mean_iou(d0, labels)
-            u2net_dice, u2net_iou = dice_iou_function(d0.cpu().numpy(), labels.cpu().numpy())
-            total_dice += u2net_dice
-            total_iou += u2net_iou
-            print("index:{}/{}, inferencing:{}, u2net_dice:{}, u2net_iou:{}".
-                  format(index, len(test_loader), inferencing, u2net_dice, u2net_iou))
 
-            arr = inferencing.split("/")
+            arr = image_path.split("/")
             path = ""
-            index = 0
+            index1 = 0
             for var in arr:
                 if len(var) > 0:
                     path += var + "/"
-                if index == len(arr)-3:
+                if index1 == len(arr) - 3:
                     break
-                index = index + 1
+                index1 = index1 + 1
             path = path + "bbox/"
             if not os.path.exists(path):
                 # 如果文件夹不存在，则创建文件夹
                 os.makedirs(path)
+            save_image_name = path + arr[len(arr) - 1]
+            image = Image.open(image_path)
+            image_np = np.array(image)
+            h, w, _ = image_np.shape
 
-            pred = d0[0, 0, :, :]
-            pred = normPRED(pred)
-            save_output(inferencing, pred, path)
+            pres = torch.where(d0.squeeze() > 0.5, 255.0, 0)
+            predict_np = pres.cpu().data.numpy()
+            im = Image.fromarray(predict_np).convert('L')
+            imo = im.resize((w, h), resample=Image.BILINEAR)
+            imo.save(save_image_name)
+
+            u2net_dice, u2net_iou = calculate_dice_iou(save_image_name, mask_path)
+            total_dice += u2net_dice
+            total_iou += u2net_iou
+            print("index:{}/{}, image:{}, u2net_dice:{}, u2net_iou:{}".
+                  format(index, len(test_loader), image_path, u2net_dice, u2net_iou))
+
+
     print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))
 
 

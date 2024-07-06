@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02):
+    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.1):
         self.device = sam.device
         self.preprocess = sam.preprocess
 

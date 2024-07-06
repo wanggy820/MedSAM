@@ -64,15 +64,20 @@ class MedSAM_U2net(Dataset):
         auxiliary_ratio_masks = torch.as_tensor(auxiliary_ratio_np, dtype=torch.float32)  # torch tensor
         auxiliary_ratio_masks = auxiliary_ratio_masks.unsqueeze(0)
 
-
         ##################################### 不能用 find_bboxes() 张量维度不一样
         y_indices, x_indices = np.where(auxiliary_np > 0)
-        x_min, x_max = np.min(x_indices), np.max(x_indices)
-        y_min, y_max = np.min(y_indices), np.max(y_indices)
-        x_min = max(0, x_min - random.randint(0, self.bbox_shift))
-        x_max = min(W, x_max + random.randint(0, self.bbox_shift))
-        y_min = max(0, y_min - random.randint(0, self.bbox_shift))
-        y_max = min(H, y_max + random.randint(0, self.bbox_shift))
+        if len(y_indices) == 0 or len(x_indices) == 0 :
+            x_min = 0
+            x_max = W
+            y_min = 0
+            y_max = H
+        else:
+            x_min, x_max = np.min(x_indices), np.max(x_indices)
+            y_min, y_max = np.min(y_indices), np.max(y_indices)
+            x_min = max(0, x_min - random.randint(0, self.bbox_shift))
+            x_max = min(W, x_max + random.randint(0, self.bbox_shift))
+            y_min = max(0, y_min - random.randint(0, self.bbox_shift))
+            y_max = min(H, y_max + random.randint(0, self.bbox_shift))
         box_np = np.array([x_min, y_min, x_max, y_max])
         H, W = mask_np.shape[-2:]
         box_1024 = box_np / np.array([W, H, W, H]) * 1024
