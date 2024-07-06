@@ -15,7 +15,6 @@ import argparse
 import torch
 from torch import optim
 from segment_anything import sam_model_registry
-import torch.nn.functional as F
 
 # 设置了一些配置参数
 beta = [0.9, 0.999]
@@ -25,7 +24,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -35,7 +34,7 @@ def parse_opt():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser.parse_known_args()[0]
 
 def main(opt):
