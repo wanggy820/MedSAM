@@ -53,9 +53,8 @@ class MedSAM_U2net(Dataset):
 
         #####################################
 
-        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255.0  # 读取掩码数据
-        mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)
-        mask_256 = torch.as_tensor(mask_256).unsqueeze(0)
+        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255  # 读取掩码数据
+        mask = torch.as_tensor(mask_np).unsqueeze(0)
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
         auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
@@ -115,12 +114,12 @@ class MedSAM_U2net(Dataset):
         size = np.array([w, h])
         data = {
             'image': img,
-            'mask': mask_256,
+            'mask': mask,
             "prompt_box": box_1024,
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
             "size": size,
-            "auxiliary_ratio_masks": auxiliary_ratio_masks
+            "auxiliary_ratio_masks": auxiliary_ratio_masks,
         }
         return data

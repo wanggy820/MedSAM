@@ -96,12 +96,11 @@ def main(opt):
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
-
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
-
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
-            # auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device)
+            auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device, dtype=torch.float32)
+            w, h = train_data["size"][0]
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
@@ -121,27 +120,23 @@ def main(opt):
 
             low_res_pred = torch.sigmoid(train_mask)
 
-            low_res = low_res_pred * prompt_masks
-            # low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
+            height = h.item()
+            width = w.item()
+            if height > width:
+                height = sam.image_encoder.img_size
+                width = int(w.item() * sam.image_encoder.img_size / h.item())
+            else:
+                width = sam.image_encoder.img_size
+                height = int(h.item() * sam.image_encoder.img_size / w.item())
+            predict = sam.postprocess_masks(low_res_pred, (height, width),
+                                            (h.item(), w.item()))
 
-            # c2 = low_res_pred.squeeze().cpu()
-            # # c3 = torch.where(c2 > 0.5, 255.0, 0.0)
-            # torchvision.utils.save_image(c2, "low_res_pred.png")
-            #
-            # c21 = prompt_masks.squeeze().cpu()
-            # # c31 = torch.where(c21 > 0, 255.0, 0.0)
-            # torchvision.utils.save_image(c21, "prompt_masks.png")
-            #
-            # c21 = low_res.squeeze().cpu()
-            # # c31 = torch.where(c21 > 0, 255.0, 0.0)
-            # torchvision.utils.save_image(c21, "low_res.png")
-
-
+            predict = predict * auxiliary_ratio_masks
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(low_res, train_target_mask, eps=1e-6)
+            train_true_iou = mean_iou(predict, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
-            train_loss_one = compute_loss(low_res, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(predict, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
 
             optimizer.step()
