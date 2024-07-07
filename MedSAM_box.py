@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from segment_anything.utils.transforms import ResizeLongestSide
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.1):
+    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0):
         self.device = sam.device
         self.preprocess = sam.preprocess
 
@@ -22,7 +22,6 @@ class MedSAMBox(Dataset):
         self.transform_mask = ResizeLongestSide(self.output_size)
 
         self.bbox_shift = bbox_shift
-        self.ratio = max(ratio, 1)
 
     def __len__(self):
         return len(self.image_list)
@@ -78,15 +77,19 @@ class MedSAMBox(Dataset):
         box_1024 = box_1024.astype(np.int16)
 
         #####################################
-        size = int(self.output_size * self.ratio)
+        bbox_shift = random.randint(0, self.bbox_shift * 2)
+        ratio = min(bbox_shift / (x_max - x_min) + 1, 1.5)
+        ratio = max(ratio, 1)
+        size = int(self.output_size * ratio)
         transform_ratio = ResizeLongestSide(size)
         auxiliary_ratio = self.preprocessMask(auxiliary_np, transform_ratio, size)
 
-        top = int(size * (self.ratio - 1) / 2)
+        top = int(size * (ratio - 1) / 2)
         bottom = top + self.output_size
-        left = int(size * (self.ratio - 1) / 2)
+        left = int(size * (ratio - 1) / 2)
         right = left + self.output_size
         auxiliary_ratio_masks = auxiliary_ratio[top:bottom, left:right]
+
         auxiliary_ratio_masks += auxiliary_256
         auxiliary_ratio_masks = auxiliary_ratio_masks // 2 + auxiliary_ratio_masks % 2
         prompt_masks = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)

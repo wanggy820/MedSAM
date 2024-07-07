@@ -595,4 +595,7 @@ test dataset
 ISIC 2018
 PH2
 
+
+训练的时候mask 不放大， iou 会提高？  但 test 的时候还是会有缩放，
+
 '''

@@ -1,10 +1,7 @@
 # 导入了一些库
 import warnings
-
-import torchvision
-from torch.nn import functional as F
 from segment_anything_u2net.build_u2net_sam import build_sam
-from utils.data_convert import mean_iou, compute_loss, build_dataloader_u2net, build_dataloader_box
+from utils.data_convert import mean_iou, compute_loss, build_dataloader_box
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -84,7 +81,7 @@ def main(opt):
     tr_pl_loss_list = []
     tr_pl_mi_list = []
 
-    dataloaders = build_dataloader_u2net(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
@@ -99,8 +96,6 @@ def main(opt):
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
-            auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device, dtype=torch.float32)
-            w, h = train_data["size"][0]
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
@@ -120,23 +115,11 @@ def main(opt):
 
             low_res_pred = torch.sigmoid(train_mask)
 
-            height = h.item()
-            width = w.item()
-            if height > width:
-                height = sam.image_encoder.img_size
-                width = int(w.item() * sam.image_encoder.img_size / h.item())
-            else:
-                width = sam.image_encoder.img_size
-                height = int(h.item() * sam.image_encoder.img_size / w.item())
-            predict = sam.postprocess_masks(low_res_pred, (height, width),
-                                            (h.item(), w.item()))
-
-            predict = predict * auxiliary_ratio_masks
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(predict, train_target_mask, eps=1e-6)
+            train_true_iou = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
-            train_loss_one = compute_loss(predict, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
 
             optimizer.step()

@@ -182,3 +182,4 @@ feature_map_sam/*
 
 datasets/*
 segment_anything_u2net/val/*
+segment_anything_u2net/models_no_box/*
