@@ -52,7 +52,7 @@ class MedSAMBox(Dataset):
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
         #####################################
 
-        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)/255.0  # 读取掩码数据
+        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)
         mask_256 = torch.as_tensor(mask_256).unsqueeze(0)
 
