@@ -2,6 +2,9 @@
 import os
 import warnings
 import logging
+
+import torchvision.utils
+
 from segment_anything_u2net.build_u2net_sam import build_sam
 from utils.data_convert import build_dataloader_box, build_dataloader_u2net, calculate_dice_iou
 
@@ -21,12 +24,12 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISIC2017', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='../datasets/', help='data directory')
-    parser.add_argument('--data_type', type=str, default='test', help='data directory')
+    parser.add_argument('--data_type', type=str, default='val', help='data directory')
     return parser.parse_known_args()[0]
 
 def create_clear_dir(dir):
@@ -77,29 +80,20 @@ def main(opt):
     for index, val_data in enumerate(dataloader):
         # 将训练数据移到指定设备，这里是GPU
         val_input = val_data['image'].to(device)
-
-        val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
         prompt_box = val_data["prompt_box"].to(device)
         prompt_masks = val_data["prompt_masks"].to(device)
-        auxiliary_ratio_masks = val_data["auxiliary_ratio_masks"].to(device)
-        image_path = val_data['image_path'][0]
-        mask_path = val_data['mask_path'][0]
+        # auxiliary_ratio_masks = val_data["auxiliary_ratio_masks"].to(device)
+        image_path = val_data['image_path']
+        mask_path = val_data['mask_path']
+        size = val_data["size"]
 
         print(f"index:{index + 1}/{len(dataloader)},image_path:{image_path}")
         logging.info("image_path:{}".format(image_path))
-        img_np = io.imread(image_path)
-        if len(img_np.shape) == 2:
-            img_3c = np.repeat(img_np[:, :, None], 3, axis=-1)
-        else:
-            img_3c = img_np
-        H, W, _ = img_3c.shape
 
         # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
         val_encode_feature = sam.image_encoder(val_input)
         val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                          masks=prompt_masks)
-
-
         #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
         val_mask, val_IOU = sam.mask_decoder(
             image_embeddings=val_encode_feature,
@@ -107,39 +101,48 @@ def main(opt):
             sparse_prompt_embeddings=val_sparse_embeddings,
             dense_prompt_embeddings=val_dense_embeddings,
             multimask_output=False)
-
-        H, W = val_target_mask.shape[-2:]
         low_res_pred = torch.sigmoid(val_mask)
-        low_res = F.interpolate(
-            low_res_pred,
-            size=(H, W),
-            mode="bilinear",
-            align_corners=False,
-        )
-        low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
-        low_res = low_res.squeeze().cpu()
-        res = torch.where(low_res > 0.5, 255.0, 0.0)
 
-        if "\\" in image_path:
-            aaa = image_path.split("\\")
-        else:
-            aaa = image_path.split("/")
-        image_path = interaction_dir + '/' + aaa[len(aaa) - 1]
-        predict = res.squeeze()
-        predict_np = predict.cpu().data.numpy()
-        im = Image.fromarray(predict_np).convert('L')
-        im.save(image_path)
+        res_pre = torch.where(low_res_pred > 0.5, 255.0, 0)
+        ##################################### MEDSAM
+        for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
+            arr = mPath.split("/")
+            image_name = arr[len(arr) - 1]
+            if image_name.find("\\"):
+                arr = image_name.split("\\")
+                image_name = arr[len(arr) - 1]
+            save_image_name = interaction_dir + os.sep + image_name
 
-        interaction_dice, interaction_iou = calculate_dice_iou(image_path, mask_path)
-        interaction_total_dice += interaction_dice
-        interaction_total_iou += interaction_iou
+            # 保存为灰度图
+            predict = pre.unsqueeze(0)
 
-        print("interaction iou:{:.6f}, interaction dice:{:.6f}".format(interaction_iou, interaction_dice))
-        print("interaction mean iou:{:.6f},interaction mean dice:{:.6f}"
-              .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
-        logging.info("interaction iou:{:.6f}, interaction dice:{:.6f}".format(interaction_iou, interaction_dice))
-        logging.info("interaction mean iou:{:.6f},interaction mean dice:{:.6f}"
-                     .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
+            height = h.item()
+            width = w.item()
+            if height > width:
+                height = sam.image_encoder.img_size
+                width = int(w.item() * sam.image_encoder.img_size / h.item())
+            else:
+                width = sam.image_encoder.img_size
+                height = int(h.item() * sam.image_encoder.img_size / w.item())
+            predict = sam.postprocess_masks(predict, (height, width),
+                                            (h.item(), w.item()))
+            predict = predict.squeeze()
+            predict_np = predict.cpu().data.numpy()
+            im = Image.fromarray(predict_np).convert('L')
+            imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
+            imo.save(save_image_name)
+
+            dice, iou = calculate_dice_iou(save_image_name, mPath)
+            interaction_total_dice += dice
+            interaction_total_iou += iou
+            print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                  .format(iou, dice))
+            print("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                  .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
+            logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                         .format(iou, dice))
+            logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                         .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
 
 
 if __name__ == '__main__':

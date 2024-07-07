@@ -63,12 +63,17 @@ class MedSAMBox(Dataset):
         auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
 
         y_indices, x_indices = np.where(auxiliary_1024 > 0)
-        x_min, x_max = np.min(x_indices), np.max(x_indices)
-        y_min, y_max = np.min(y_indices), np.max(y_indices)
-        x_min = max(0, x_min - random.randint(0, self.bbox_shift))
-        x_max = min(self.img_size, x_max + random.randint(0, self.bbox_shift))
-        y_min = max(0, y_min - random.randint(0, self.bbox_shift))
-        y_max = min(self.img_size, y_max + random.randint(0, self.bbox_shift))
+        if len(y_indices) == 0 or len(x_indices) == 0:
+            x_min = y_min = 0
+            x_max = y_max = self.img_size
+        else:
+            x_min, x_max = np.min(x_indices), np.max(x_indices)
+            y_min, y_max = np.min(y_indices), np.max(y_indices)
+            x_min = max(0, x_min - random.randint(0, self.bbox_shift))
+            x_max = min(self.img_size, x_max + random.randint(0, self.bbox_shift))
+            y_min = max(0, y_min - random.randint(0, self.bbox_shift))
+            y_max = min(self.img_size, y_max + random.randint(0, self.bbox_shift))
+
         box_1024 = np.array([x_min, y_min, x_max, y_max])
         box_1024 = box_1024.astype(np.int16)
 

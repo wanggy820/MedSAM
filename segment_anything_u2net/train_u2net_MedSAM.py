@@ -1,8 +1,10 @@
 # 导入了一些库
 import warnings
+
+import torchvision
 from torch.nn import functional as F
 from segment_anything_u2net.build_u2net_sam import build_sam
-from utils.data_convert import mean_iou, compute_loss, build_dataloader_u2net
+from utils.data_convert import mean_iou, compute_loss, build_dataloader_u2net, build_dataloader_box
 import numpy as np
 from tqdm import tqdm
 from datetime import datetime
@@ -23,11 +25,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISIC2016', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
+    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=20, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -99,7 +101,7 @@ def main(opt):
 
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
-            auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device)
+            # auxiliary_ratio_masks = train_data["auxiliary_ratio_masks"].to(device)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
@@ -117,23 +119,23 @@ def main(opt):
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
 
-            H, W = train_target_mask.shape[-2:]
             low_res_pred = torch.sigmoid(train_mask)
-            low_res = F.interpolate(
-                low_res_pred,
-                size=(H, W),
-                mode="bilinear",
-                align_corners=False,
-            )
-            low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
 
-            # c2 = low_res.squeeze().cpu()
-            # c3 = torch.where(c2 > 0.5, 255.0, 0.0)
-            # torchvision.utils.save_image(c3, "image_path.png")
+            low_res = low_res_pred * prompt_masks
+            # low_res = low_res * torch.where(auxiliary_ratio_masks > 0, 1, 0)
+
+            # c2 = low_res_pred.squeeze().cpu()
+            # # c3 = torch.where(c2 > 0.5, 255.0, 0.0)
+            # torchvision.utils.save_image(c2, "low_res_pred.png")
             #
             # c21 = prompt_masks.squeeze().cpu()
-            # c31 = torch.where(c21 > 0, 255.0, 0.0)
-            # torchvision.utils.save_image(c31, "image_path1.png")
+            # # c31 = torch.where(c21 > 0, 255.0, 0.0)
+            # torchvision.utils.save_image(c21, "prompt_masks.png")
+            #
+            # c21 = low_res.squeeze().cpu()
+            # # c31 = torch.where(c21 > 0, 255.0, 0.0)
+            # torchvision.utils.save_image(c21, "low_res.png")
+
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou = mean_iou(low_res, train_target_mask, eps=1e-6)
