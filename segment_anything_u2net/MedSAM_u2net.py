@@ -53,15 +53,14 @@ class MedSAM_U2net(Dataset):
 
         #####################################
 
-        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE) / 255  # 读取掩码数据
-        mask = torch.as_tensor(mask_np).unsqueeze(0)
+        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        mask = torch.as_tensor(mask_np/255).unsqueeze(0)
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
         auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
-        auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
 
-        y_indices, x_indices = np.where(auxiliary_1024 > 0)
+        y_indices, x_indices = np.where(auxiliary_256 > 0)
         if len(y_indices) == 0 or len(x_indices) == 0:
             x_min = y_min = 0
             x_max = y_max = self.img_size
@@ -73,7 +72,7 @@ class MedSAM_U2net(Dataset):
             y_min = max(0, y_min - random.randint(0, self.bbox_shift))
             y_max = min(self.img_size, y_max + random.randint(0, self.bbox_shift))
 
-        box_1024 = np.array([x_min, y_min, x_max, y_max])
+        box_1024 = np.array([x_min, y_min, x_max, y_max])*2
         box_1024 = box_1024.astype(np.int16)
 
         #####################################
