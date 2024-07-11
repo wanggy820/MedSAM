@@ -4,7 +4,7 @@ import os
 from PIL import Image
 from segment_anything import sam_model_registry
 import logging
-from utils.data_convert import build_dataloader_box, calculate_dice_iou
+from utils.data_convert import build_dataloader_box, calculate_iou_dice, calculate_iou_dice1
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -14,12 +14,12 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--data_type', type=str, default='test', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
+    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
     return parser
 
 
@@ -66,7 +66,7 @@ def main():
                 test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                     masks=None)
             else:
-                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                     masks=prompt_masks)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
@@ -88,7 +88,8 @@ def main():
                     arr = image_name.split("\\")
                     image_name = arr[len(arr) - 1]
                 save_image_name = val_dataset + image_name
-
+                if os.path.exists(save_image_name):
+                    os.remove(save_image_name)
                 # 保存为灰度图
                 predict = pre.unsqueeze(0)
 
@@ -108,7 +109,10 @@ def main():
                 imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
                 imo.save(save_image_name)
 
-                dice, iou = calculate_dice_iou(save_image_name, mPath)
+                iou, dice = calculate_iou_dice(save_image_name, mPath)
+                iou = iou.item()
+                dice = dice.item()
+                print(f"index:{index + 1}/{len(dataloader)},image_path:{mask_path}")
                 interaction_total_dice += dice
                 interaction_total_iou += iou
                 print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"

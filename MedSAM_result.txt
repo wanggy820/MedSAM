@@ -10,7 +10,7 @@ U2net sam(test dataset) mean iou:0.829970,interaction mean dice:0.905960
 Thyroid  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
 U2net mean iou:0.675431, mean dice:0.766860
 interaction(val dataset) box mean iou:0.674314,interaction mean dice:0.785088
-interaction(test dataset) box mean iou:0.569412,interaction mean dice:0.682961
+interaction(test dataset) box mean iou:0.651377,interaction mean dice:0.747135
 interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
 interaction(test dataset) mean iou:0.590023,interaction mean dice:0.703886
 U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
@@ -19,7 +19,7 @@ U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
 ##########################
 IoU = TP / (TP + FP + FN)
 dice = 2*TP/(FP + FN + 2 * TP)
-interaction(val dataset) mask mean iou:0.934537,interaction mean dice:0.963787
+interaction(val dataset) mask mean iou:0.652312,interaction mean dice:0.748028
 U2net sam(val dataset) mean iou:0.965713,interaction mean dice:0.982432
 ##########################
 

@@ -59,8 +59,8 @@ def mean_iou(preds, labels, eps=1e-6):
     intersection = intersection + (union == 0) + eps
     union = union + (union == 0) + eps
     ious = intersection / union
-
-    return ious
+    dice = 2*intersection/ (union + intersection)
+    return ious, dice
 
 def getDatasets(dataset_name, root_dir, data_type):
     image_list = []
@@ -155,10 +155,7 @@ def getDatasets(dataset_name, root_dir, data_type):
         for name in names:
             image_path = data_dir + "Thyroid-image/" + "{:04d}".format(name) + format
             mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
-            if data_type == "test":
-                auxiliary_path = data_dir + "bbox/" + "{:04d}".format(name) + format
-            else:
-                auxiliary_path = mask_path
+            auxiliary_path = data_dir + "bbox/" + "{:04d}".format(name) + format
             image_list.append(image_path)
             mask_list.append(mask_path)
             auxiliary_list.append(auxiliary_path)
@@ -213,7 +210,7 @@ transform = transforms.Compose([
     transforms.ToTensor(),  # 转换为Tensor
 ])
 
-def calculate_dice_iou1(pred, target, smooth=1e-6):
+def calculate_iou_dice1(pred, target, smooth=1e-6):
     pre_img = Image.open(pred)
     pred = transform(pre_img)
 
@@ -223,20 +220,21 @@ def calculate_dice_iou1(pred, target, smooth=1e-6):
     assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
 
     # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
-    pred_positives = (pred == 1)
-    pre_negatives = (pred == 0)
-    mask_positives = (mask == 1)
-    mask_negatives = (mask == 0)
+    pred_positives = (pred >= 0.5)
+    pre_negatives = (pred < 0.5)
+    mask_positives = (mask >= 0.5)
+    mask_negatives = (mask < 0.5)
 
     TP = (pred_positives * mask_positives).sum()
     FP = (pred_positives * mask_negatives).sum()
     FN = (pre_negatives * mask_positives).sum()
 
     IoU = (TP + smooth) / (TP + FP + FN + smooth)
+
     DICE = 2 * IoU / (IoU + 1)
 
-    return DICE, IoU
-def calculate_dice_iou(pred_path, mask_path, smooth=1e-5):
+    return IoU, DICE
+def calculate_iou_dice(pred_path, mask_path, smooth=1e-5):
     pre_img = Image.open(pred_path)
     pred = transform(pre_img)
 
@@ -246,19 +244,10 @@ def calculate_dice_iou(pred_path, mask_path, smooth=1e-5):
     assert pred.size() == mask.size(), "Size of predictions and targets must be the same"
 
     # 将pred和target转换为布尔型，即0和1，1代表前景，0代表背景
-    pred_positives = (pred == 1)
-    mask_positives = (mask == 1)
+    pred_positives = pred.unsqueeze(0)
+    mask_positives = mask.unsqueeze(0)
 
-    # 计算交集
-    intersection = (pred_positives * mask_positives).sum()
-
-    # 计算并集
-    union = (pred_positives + mask_positives).sum()
-
-    dice = (2 * intersection + smooth) / (union + intersection + smooth)
-    # 计算IoU
-    iou = (intersection + smooth) / (union + smooth)  # 添加1e-6以避免除以零
-    return dice, iou
+    return mean_iou(pred_positives, mask_positives)
 
 
 def normPRED(d):

@@ -23,7 +23,7 @@ bce_loss = nn.BCELoss(reduction='mean')
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='ISIC2017', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=10, help='batch size')
     parser.add_argument('--epochs', type=int, default=30, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning_rate')
@@ -116,7 +116,7 @@ def main(opt):
             # forward + backward + optimize
             d0, d1, d2, d3, d4, d5, d6 = net(inputs_v)
             loss2, loss = muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v)
-            iou = mean_iou(d0, labels_v)
+            iou, dice = mean_iou(d0, labels_v)
             loss.backward()
             optimizer.step()
 

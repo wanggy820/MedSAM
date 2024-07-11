@@ -1,7 +1,7 @@
 # 导入了一些库
 import os
 import warnings
-
+import cv2
 import numpy as np
 import torchvision.utils
 from PIL import Image
@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import getDatasets, save_output, calculate_dice_iou
+from utils.data_convert import getDatasets, save_output, calculate_iou_dice, mean_iou
 import argparse
 import torch
 warnings.filterwarnings(action='ignore')
@@ -23,7 +23,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='ISIC2017', help='model name')
+    parser.add_argument('--datasets', type=str, default='Thyroid', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -97,9 +97,14 @@ def main(opt):
                 # 如果文件夹不存在，则创建文件夹
                 os.makedirs(path)
             save_image_name = path + arr[len(arr) - 1]
+            if os.path.exists(save_image_name):
+                os.remove(save_image_name)
             image = Image.open(image_path)
             image_np = np.array(image)
-            h, w, _ = image_np.shape
+            if len(image_np.shape) == 2:
+                h, w = image_np.shape
+            else:
+                h, w, _ = image_np.shape
 
             pres = torch.where(d0.squeeze() > 0.5, 255.0, 0)
             predict_np = pres.cpu().data.numpy()
@@ -107,11 +112,11 @@ def main(opt):
             imo = im.resize((w, h), resample=Image.BILINEAR)
             imo.save(save_image_name)
 
-            u2net_dice, u2net_iou = calculate_dice_iou(save_image_name, mask_path)
-            total_dice += u2net_dice
-            total_iou += u2net_iou
+            u2net_iou, u2net_dice = calculate_iou_dice(save_image_name, mask_path)
+            total_dice += u2net_dice.item()
+            total_iou += u2net_iou.item()
             print("index:{}/{}, image:{}, u2net_dice:{}, u2net_iou:{}".
-                  format(index, len(test_loader), image_path, u2net_dice, u2net_iou))
+                  format(index, len(test_loader), image_path, u2net_dice.item(), u2net_iou.item()))
 
 
     print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))
