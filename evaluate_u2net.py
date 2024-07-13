@@ -32,15 +32,6 @@ def parse_opt():
 
     return parser.parse_known_args()[0]
 
-def dice_iou_function(pred, target, smooth=1.0):
-    pred_flat = pred.reshape(-1)
-    target_flat = target.reshape(-1)
-    intersection = (pred_flat * target_flat).sum()
-    dice = (2. * intersection + smooth) / (pred_flat.sum() + target_flat.sum() + smooth)
-    iou = (intersection + smooth) / (pred_flat.sum() + target_flat.sum() - intersection + smooth)
-    return dice, iou
-
-
 def main(opt):
     if torch.backends.mps.is_available():
         device = torch.device("mps")

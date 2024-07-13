@@ -11,6 +11,9 @@ from PIL import Image
 from MedSAM_box import MedSAMBox
 from torchvision import transforms
 
+from segment_anything_auxiliary.MedAuxiliarySAMDataset import MedAuxiliarySAMDataset
+
+
 # 损失函数
 def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
     # pred = F.sigmoid(pred)
@@ -196,6 +199,20 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
     for key in ['train', 'val', 'test']:
         image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
         datasets = MedSAMBox(sam, image_list, mask_list, auxiliary_list, bbox_shift=20)
+        dataloaders[key] = DataLoader(
+            datasets,
+            batch_size=batch_size,
+            shuffle=False if key != 'train' else True,
+            num_workers=num_workers,
+            pin_memory=False
+        )
+    return dataloaders
+
+def build_dataloader_auxiliary(sam, dataset_name, data_dir, batch_size, num_workers):
+    dataloaders = {}
+    for key in ['train', 'val', 'test']:
+        image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
+        datasets = MedAuxiliarySAMDataset(sam, image_list, mask_list)
         dataloaders[key] = DataLoader(
             datasets,
             batch_size=batch_size,
