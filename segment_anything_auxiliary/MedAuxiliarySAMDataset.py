@@ -2,6 +2,7 @@ import random
 import cv2
 import numpy as np
 import torch
+from skimage import io
 from torch.utils.data import Dataset
 from torch.nn import functional as F
 from segment_anything.utils.transforms import ResizeLongestSide
@@ -41,10 +42,17 @@ class MedAuxiliarySAMDataset(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
         mask_path = self.mask_list[idx]  # 读取mask data 路径
-        #####################################
+        image = io.imread(image_path)  # 读取原图数据
+        mask_np = io.imread(mask_path)  # 读取掩码数据
+        if 3==len(mask_np.shape):
+            mask_np = mask_np[:,:0]
 
-        image = cv2.imread(image_path)  # 读取原图数据
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        if (3 == len(image.shape) and 2 == len(mask_np.shape)):
+            mask_np = mask_np[:, :, np.newaxis]
+        elif (2 == len(image.shape) and 2 == len(mask_np.shape)):
+            image = image[:, :, np.newaxis]
+            mask_np = mask_np[:, :, np.newaxis]
+        #####################################
 
         image_1200 = self.transform_1200.apply_image(image)  #
         h, w = image_1200.shape[:2]
@@ -70,7 +78,7 @@ class MedAuxiliarySAMDataset(Dataset):
 
 
         #####################################
-        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+
         mask_1200 = self.transform_1200.apply_image(mask_np)  #
         mask_1024 = mask_1200[top: top + new_h, left: left + new_w]
         mask_1024 = self.preprocessMask(mask_1024, self.transform_1024, self.image_size)
