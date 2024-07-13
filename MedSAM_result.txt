@@ -12,14 +12,14 @@ U2net mean iou:0.675431, mean dice:0.766860
 interaction(val dataset) box mean iou:0.674314,interaction mean dice:0.785088
 interaction(test dataset) box mean iou:0.651377,interaction mean dice:0.747135
 interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
-interaction(test dataset) mean iou:0.590023,interaction mean dice:0.703886
+interaction(test dataset) mean iou:0.661910,interaction mean dice:0.767368
 U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
 U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
 
 ##########################
 IoU = TP / (TP + FP + FN)
 dice = 2*TP/(FP + FN + 2 * TP)
-interaction(val dataset) mask mean iou:0.652312,interaction mean dice:0.748028
+interaction(val dataset) mask mean iou:0.661903,interaction mean dice:0.767551
 U2net sam(val dataset) mean iou:0.965713,interaction mean dice:0.982432
 ##########################
 

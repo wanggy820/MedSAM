@@ -13,6 +13,8 @@ from U2_Net.model import U2NET
 from utils.data_convert import getDatasets, save_output, calculate_iou_dice, mean_iou
 import argparse
 import torch
+import shutil
+
 warnings.filterwarnings(action='ignore')
 
 
@@ -118,6 +120,17 @@ def main(opt):
             print("index:{}/{}, image:{}, u2net_dice:{}, u2net_iou:{}".
                   format(index, len(test_loader), image_path, u2net_dice.item(), u2net_iou.item()))
 
+            if u2net_iou > 0.1:
+                continue
+            name = arr[len(arr) - 1]
+            if not os.path.exists(opt.datasets):
+                os.makedirs(opt.datasets)
+            path = f'{opt.datasets}/{name}_{u2net_iou.item()}'
+            if not os.path.exists(path):
+                os.makedirs(path)
+            shutil.copyfile(image_path, path + "/image.png")
+            shutil.copyfile(mask_path, path + "/mask.png")
+            shutil.copyfile(save_image_name, path + "/predict.png")
 
     print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))
 

@@ -5,6 +5,8 @@ import torch
 from torch.utils.data import Dataset
 from torch.nn import functional as F
 from segment_anything.utils.transforms import ResizeLongestSide
+from utils.box import find_bboxes
+
 
 class MedSAMBox(Dataset):
     def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0):
@@ -58,6 +60,10 @@ class MedSAMBox(Dataset):
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
         auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        if (auxiliary_np > 0).sum() < 200:
+            auxiliary_np = np.ones(auxiliary_np.shape)*255
+
+
         auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
         auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
 
@@ -75,6 +81,7 @@ class MedSAMBox(Dataset):
 
         box_1024 = np.array([x_min, y_min, x_max, y_max])
         box_1024 = box_1024.astype(np.int16)
+        # box_1024 = find_bboxes(auxiliary_1024, self.bbox_shift, False)
 
         #####################################
         bbox_shift = random.randint(0, self.bbox_shift * 2)
@@ -103,6 +110,7 @@ class MedSAMBox(Dataset):
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
+            "auxiliary_path": auxiliary_path,
             "size": size
         }
         return data

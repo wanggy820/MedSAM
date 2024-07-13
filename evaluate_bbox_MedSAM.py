@@ -112,7 +112,6 @@ def main():
                 iou, dice = calculate_iou_dice(save_image_name, mPath)
                 iou = iou.item()
                 dice = dice.item()
-                print(f"index:{index + 1}/{len(dataloader)},image_path:{mask_path}")
                 interaction_total_dice += dice
                 interaction_total_iou += iou
                 print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
