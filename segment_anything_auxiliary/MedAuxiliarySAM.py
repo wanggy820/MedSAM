@@ -23,47 +23,42 @@ class MedAuxiliarySAM(nn.Module):
         image_encoder,
         mask_decoder,
         prompt_encoder,
-        u2net
+        u2net,
+        bbox_shift=0
     ):
         super().__init__()
         self.image_encoder = image_encoder
         self.mask_decoder = mask_decoder
         self.prompt_encoder = prompt_encoder
         self.u2net = u2net
+        self.bbox_shift = bbox_shift
         # freeze prompt encoder
         for param in self.prompt_encoder.parameters():
             param.requires_grad = False
 
-    def forward(self, image, epoch=5):
-        auxiliary_image = transform.resize(image,
-                                           (self.prompt_encoder.embed_dim, self.prompt_encoder.embed_dim),
-                                           mode='constant', order=0, preserve_range=True)
+    def forward(self, image, auxiliary_image):
         d0, d1, d2, d3, d4, d5, d6 = self.u2net(auxiliary_image)
+
+        prompt_mask = d0
+
+
         image_embedding = self.image_encoder(image)  # (B, 256, 64, 64)
         # do not compute gradients for prompt encoder
-        res_masks = 0
-        best_maks = d0
-        best_iou = 0
-        for i in range(0, epoch):
-            res_masks += d0
-            with torch.no_grad():
-                sparse_embeddings, dense_embeddings = self.prompt_encoder(
-                    points=None,
-                    boxes=None,
-                    masks=d0,
-                )
-            low_res_masks, iou = self.mask_decoder(
-                image_embeddings=image_embedding,  # (B, 256, 64, 64)
-                image_pe=self.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
-                sparse_prompt_embeddings=sparse_embeddings,  # (B, 2, 256)
-                dense_prompt_embeddings=dense_embeddings,  # (B, 256, 64, 64)
-                multimask_output=False,
+        with torch.no_grad():
+            sparse_embeddings, dense_embeddings = self.prompt_encoder(
+                points=None,
+                boxes=None,
+                masks=prompt_mask,
             )
-            res_masks = torch.sigmoid(low_res_masks)
-            if best_iou < iou:
-                best_iou = iou
-                best_maks = res_masks
+        low_res_masks, iou = self.mask_decoder(
+            image_embeddings=image_embedding,  # (B, 256, 64, 64)
+            image_pe=self.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
+            sparse_prompt_embeddings=sparse_embeddings,  # (B, 2, 256)
+            dense_prompt_embeddings=dense_embeddings,  # (B, 256, 64, 64)
+            multimask_output=False,
+        )
+        res_masks = torch.sigmoid(low_res_masks)
+        if (res_masks.sum() < d0.sum()):
+            res_masks = d0
 
-        if (best_maks.sum() < d0.sum()):
-            best_maks = d0
-        return best_iou, best_maks, d0, d1, d2, d3, d4, d5, d6
+        return iou, res_masks, d0, d1, d2, d3, d4, d5, d6

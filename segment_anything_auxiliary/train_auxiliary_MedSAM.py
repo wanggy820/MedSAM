@@ -33,7 +33,7 @@ def muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v):
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -70,7 +70,7 @@ def main(opt):
         mask_decoder=sam.mask_decoder,
         prompt_encoder=sam.prompt_encoder,
         u2net=net
-    )
+    ).to(device)
 
     optimizer = optim.AdamW(sam.mask_decoder.parameters(),
                             lr=lr, betas=beta, weight_decay=opt.weight_decay)
@@ -93,7 +93,7 @@ def main(opt):
     tr_pl_loss_list = []
     tr_pl_mi_list = []
 
-    dataloaders = build_dataloader_auxiliary(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader_auxiliary(opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
     for epoch in range(opt.epochs):
         train_loss_list = []
         train_miou_list = []
@@ -104,20 +104,22 @@ def main(opt):
         # 循环进行模型的多轮训练
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
-            image = train_data['image'].to(device)
+            image_1024 = train_data['image_1024'].to(device, dtype=torch.float32)
+            image_256 = train_data['image_256'].to(device, dtype=torch.float32)
             mask = train_data['mask'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
-            train_IOU, sam_pred, d0, d1, d2, d3, d4, d5, d6 = model(image)
+            train_IOU, sam_pred, d0, d1, d2, d3, d4, d5, d6 = model(image_1024, image_256)
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou, _ = mean_iou(sam_pred, mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
 
             u2net_loss = muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, mask)
-            train_loss_one = compute_loss(sam_pred, mask, train_IOU, train_true_iou) + u2net_loss
+            sam_loss = compute_loss(sam_pred, mask)
 
+            train_loss_one = sam_loss + u2net_loss
             train_loss_one.backward()
 
             optimizer.step()

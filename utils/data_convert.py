@@ -11,7 +11,7 @@ from PIL import Image
 from MedSAM_box import MedSAMBox
 from torchvision import transforms
 
-from segment_anything_auxiliary.MedAuxiliarySAMDataset import MedAuxiliarySAMDataset
+from segment_anything_auxiliary.SAMDataset import SAMDataset
 
 
 # 损失函数
@@ -41,15 +41,12 @@ def dice_function(pred, target, smooth=1.0):
 
     return ((2. * intersection + smooth) /
                 (pred_flat.sum() + target_flat.sum() + smooth))
-def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
-    # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
+def compute_loss(pred_mask, true_mask):
     fl = focal_loss(pred_mask, true_mask)
     dl = dice_loss(pred_mask, true_mask)
     mask_loss = 20 * fl + dl
-    iou_loss = F.mse_loss(pred_iou, true_iou)
-    total_loss = mask_loss + iou_loss
 
-    return total_loss
+    return mask_loss
 
 
 def mean_iou(preds, labels, eps=1e-6):
@@ -208,11 +205,11 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers):
         )
     return dataloaders
 
-def build_dataloader_auxiliary(sam, dataset_name, data_dir, batch_size, num_workers):
+def build_dataloader_auxiliary(dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
         image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
-        datasets = MedAuxiliarySAMDataset(sam, image_list, mask_list)
+        datasets = SAMDataset(image_list, mask_list)
         dataloaders[key] = DataLoader(
             datasets,
             batch_size=batch_size,
