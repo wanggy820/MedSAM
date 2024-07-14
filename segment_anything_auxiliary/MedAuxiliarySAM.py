@@ -1,6 +1,7 @@
+import numpy as np
 import torch
 from torch import nn
-from skimage import transform
+import random
 
 bce_loss = nn.BCELoss(reduction='mean')
 def muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v):
@@ -13,7 +14,6 @@ def muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v):
     loss6 = bce_loss(d6, labels_v)
 
     loss = loss0 + loss1 + loss2 + loss3 + loss4 + loss5 + loss6
-    # print("l0: %3f, l1: %3f, l2: %3f, l3: %3f, l4: %3f, l5: %3f, l6: %3f\n"%(loss0.data.item(),loss1.data.item(),loss2.data.item(),loss3.data.item(),loss4.data.item(),loss5.data.item(),loss6.data.item()))
 
     return loss0, loss
 
@@ -39,16 +39,55 @@ class MedAuxiliarySAM(nn.Module):
     def forward(self, image, auxiliary_image):
         d0, d1, d2, d3, d4, d5, d6 = self.u2net(auxiliary_image)
 
-        prompt_mask = d0
+        prompt_masks = []
+        output_size = 1024
+        for r in d0:
+            r = r.squeeze()
+            y_indices, x_indices = np.where(r.detach().cpu().numpy() > 0.5)
+            if len(y_indices) == 0 or len(x_indices) == 0:
+                x_min = y_min = 0
+                x_max = y_max = self.img_size
+            else:
+                x_min, x_max = np.min(x_indices), np.max(x_indices)
+                y_min, y_max = np.min(y_indices), np.max(y_indices)
+                x_min = max(0, x_min - random.randint(0, self.bbox_shift))
+                x_max = min(output_size, x_max + random.randint(0, self.bbox_shift))
+                y_min = max(0, y_min - random.randint(0, self.bbox_shift))
+                y_max = min(output_size, y_max + random.randint(0, self.bbox_shift))
 
+            box_1024 = np.array([x_min, y_min, x_max, y_max])*4
 
+            bbox_shift = random.randint(0, self.bbox_shift * 2)
+            ratio = min(bbox_shift / (x_max - x_min) + 1, 1.5)
+            ratio = max(ratio, 1)
+            size = int(output_size * ratio)
+
+            auxiliary_256 = r.squeeze()
+            image_256 = r.unsqueeze(0).unsqueeze(0)
+            auxiliary_ratio = torch.nn.functional.interpolate(image_256, scale_factor=ratio,
+                                                        mode='bilinear',
+                                                        align_corners=False)
+            auxiliary_ratio = auxiliary_ratio.squeeze()
+
+            top = int(size * (ratio - 1) / 2)
+            bottom = top + output_size
+            left = int(size * (ratio - 1) / 2)
+            right = left + output_size
+            auxiliary_ratio_masks = auxiliary_ratio[top:bottom, left:right]
+
+            auxiliary_ratio_masks += auxiliary_256
+            auxiliary_ratio_masks = auxiliary_ratio_masks // 2 + auxiliary_ratio_masks % 2
+            prompt_mask = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
+            prompt_masks.append(prompt_mask)
+
+        prompt_masks = torch.stack(prompt_masks)
         image_embedding = self.image_encoder(image)  # (B, 256, 64, 64)
         # do not compute gradients for prompt encoder
         with torch.no_grad():
             sparse_embeddings, dense_embeddings = self.prompt_encoder(
                 points=None,
                 boxes=None,
-                masks=prompt_mask,
+                masks=prompt_masks,
             )
         low_res_masks, iou = self.mask_decoder(
             image_embeddings=image_embedding,  # (B, 256, 64, 64)
@@ -58,7 +97,7 @@ class MedAuxiliarySAM(nn.Module):
             multimask_output=False,
         )
         res_masks = torch.sigmoid(low_res_masks)
-        if (res_masks.sum() < d0.sum()):
+        if ((res_masks > 0.5).sum() < (d0 > 0.5).sum()):
             res_masks = d0
 
         return iou, res_masks, d0, d1, d2, d3, d4, d5, d6
