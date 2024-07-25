@@ -65,7 +65,7 @@ class MedSAMBox(Dataset):
         ##################################### 不能用 find_bboxes() 张量维度不一样
         auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         if (auxiliary_np > 0).sum() < 200:
-            auxiliary_np = np.ones(auxiliary_np.shape)*255
+            auxiliary_np = (np.ones(auxiliary_np.shape)*255).astype(np.float32)
 
         auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
         auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)

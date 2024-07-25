@@ -274,7 +274,7 @@ def main(opt):
                 f.write("\n")
                 f.write(f"ratio:{opt.ratio}")
                 f.write("\n")
-                f.write(f"Data_set : {opt.dataset_name}")
+                f.write(f"data_set : {opt.dataset_name}")
                 f.close()
 
         print("val epoch:{:3d}, loss:{:3.4f}, mIOU:{:3.4f}, dice:{:3.4f}, best loss: {:3.4f}, best mIOU: {:3.4f})"

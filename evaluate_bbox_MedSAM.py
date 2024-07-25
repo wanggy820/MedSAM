@@ -32,7 +32,7 @@ def main():
     model_path = opt.model_path
     dataset_model = f"{model_path}/{opt.dataset_name}"
     prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
-    logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
     if not os.path.exists(val_dataset):
         os.mkdir(val_dataset)
