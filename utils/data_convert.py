@@ -158,7 +158,11 @@ def getDatasets(dataset_name, root_dir, data_type):
         for name in names:
             image_path = data_dir + "Thyroid-image/" + "{:04d}".format(name) + format
             mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
-            auxiliary_path = data_dir + "bbox/" + "{:04d}".format(name) + format
+
+            if data_type == "test":
+                auxiliary_path = data_dir + "bbox/" + "{:04d}".format(name) + format
+            else:
+                auxiliary_path = mask_path
             image_list.append(image_path)
             mask_list.append(mask_path)
             auxiliary_list.append(auxiliary_path)

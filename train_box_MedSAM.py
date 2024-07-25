@@ -37,7 +37,7 @@ def parse_opt():
     parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
     parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
-    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
+    parser.add_argument('--ratio', type=float, default=1.00, help='ratio')
     return parser.parse_known_args()[0]
 
 def main(opt):
