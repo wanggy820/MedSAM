@@ -578,21 +578,20 @@ https://pdf.sciencedirectassets.com/271150/1-s2.0-S0010482523X0002X/1-s2.0-S0010
 • DICE (dice coefficient) = 2*TP/(FP + FN + 2 * TP);
 
 
-分析数据dice的原因
-是否可以通过数据增强或者其他方法来替身甲状腺图片识别
 
-创新点 文档
+1.****消除 sam predict 毛刺 ****
 
 
+训练
+2. MULTI-TASK LEARNING FOR THYROID NODULE SEGMENTATION WITH THYROID REGION PRIOR  对比
 
 
-test dataset  
-随机边缘噪声（稍慢一点）
-不同大小数据集预处理
-缩放比例改成自动
+u2net  找一个更好的网络
+deepv3+ mean iou:0.844449, mean dice:0.915332
 
-训练数据集
-ISIC 2018
-PH2
+3.
+ratio=1.0
+
+4.不加prompt
 
 '''

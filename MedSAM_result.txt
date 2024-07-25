@@ -1,45 +1,69 @@
-MICCAI   由于没有test mask, 用val代替,但mask用的是u2net的预测结果
-interaction box mean iou:0.731904,interaction mean dice:0.843565
-val dataset interaction mask+box mean iou:0.788397,interaction mean dice:0.880530
-test dataset mean iou:0.775540,interaction mean dice:0.873176
+MICCAI   由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.1
 U2net mean iou:0.844449, mean dice:0.915332
-val dataset U2net sam mean iou:0.923044,interaction mean dice:0.959204
-test dataset mean iou:0.860849,interaction mean dice:0.924143
+interaction(val dataset) box mean iou:0.729782,interaction mean dice:0.842928
+interaction(test dataset) box mean iou:0.737624,interaction mean dice:0.847708
+interaction(val dataset) mask mean iou:0.794875,interaction mean dice:0.885317
+interaction(test dataset) mean iou:0.778984,interaction mean dice:0.875323
+U2net sam(val dataset) mean iou:0.923044,interaction mean dice:0.959204  ratio=1.01
+U2net sam(test dataset) mean iou:0.829970,interaction mean dice:0.905960
 
-Thyroid
-interaction box mean iou:0.650117,interaction mean dice:0.779144
-val dataset interaction mask mean iou:0.703290,interaction mean dice:0.813733
-test dataset interaction mean iou:0.652634,interaction mean dice:0.767516
+Thyroid  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
 U2net mean iou:0.675431, mean dice:0.766860
-val dataset U2net sam mean iou:0.889056,interaction mean dice:0.939944
-test dataset U2net sam mean iou:0.834884,interaction mean dice:0.902716
+interaction(val dataset) box mean iou:0.674314,interaction mean dice:0.785088
+interaction(test dataset) box mean iou:0.651377,interaction mean dice:0.747135
+interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
+interaction(test dataset) mean iou:0.661910,interaction mean dice:0.767368
+U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
+U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
 
 ##########################
 IoU = TP / (TP + FP + FN)
 dice = 2*TP/(FP + FN + 2 * TP)
-val dataset interaction mask mean iou:0.934537,interaction mean dice:0.963787
-val dataset U2net sam mean iou:0.965713,interaction mean dice:0.982432
+interaction(val dataset) mask mean iou:0.661903,interaction mean dice:0.767551
+U2net sam(val dataset) mean iou:0.965713,interaction mean dice:0.982432
 ##########################
 
 ISIC2016 由于没有test mask, 用val代替,但mask用的是u2net的预测结果
-interaction box mean iou:0.872860,interaction mean dice:0.930503
-val dataset interaction mask+box mean iou:0.921724,interaction mean dice:0.958224 ----->windows
-test dataset mean iou:0.783042,interaction mean dice:0.859692    ------> mac 数据没训练完整
 U2net mean iou:0.802275, mean dice:0.883841
-val dataset U2net sam mean iou:0.848416,interaction mean dice:0.908040
-test dataset
+interaction(val dataset) box mean iou:0.872860,interaction mean dice:0.930503
+interaction(test dataset) box mean iou:0.750271,interaction mean dice:0.839883
+interaction(val dataset) mask mean iou:0.910636,interaction mean dice:0.952284     ratio=1.02
+interaction(test dataset) mask mean iou:0.841176,interaction mean dice:0.908380
+U2net sam(val dataset) mean iou:0.848416,interaction mean dice:0.908040
+U2net sam(test dataset) mean iou:0.744499,interaction mean dice:0.838362
 
 ISIC2017
+U2net mean iou:0.679987, mean dice:0.774312
+interaction(val dataset) box mean iou:0.851025,interaction mean dice:0.906765
+interaction(test dataset) box mean iou:0.744482,interaction mean dice:0.838352
+interaction(val dataset) mask mean iou:0.862284,interaction mean dice:0.924991    ratio=1.02
+interaction(test dataset) mask mean iou:0.691051,interaction mean dice:0.782873
+U2net sam(val dataset) mean iou:0.974382,interaction mean dice:0.986920
+U2net sam(test dataset) mean iou:0.691048,interaction mean dice:0.782871
 
-val dataset interaction mask+box mean iou:0.862284,interaction mean dice:0.924991
-
-val dataset U2net sam mean iou:0.974382,interaction mean dice:0.986920
 
 
 
 
+#########Thyroid
+ratio=1.1 vit_h box, mask
+interaction mean iou:0.699001,interaction mean dice:0.804670
+ratio=1.02
+interaction mean iou:0.710902,interaction mean dice:0.812525
 
+IoU = TP / (TP + FP + FN)
+dice = 2*TP/(FP + FN + 2 * TP)
+ratio=1.1
+interaction mean iou:0.778233,interaction mean dice:0.865424
 
+ratio=1.02
+interaction mean iou:0.803617,interaction mean dice:0.881377
+
+###########MICCAI
+ratio=1.1 vit_h box, mask
+interaction mean iou:0.785321,interaction mean dice:0.879006
+
+deepv3+ mean iou:0.844449, mean dice:0.915332
 
 
 

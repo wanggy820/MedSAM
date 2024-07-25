@@ -11,43 +11,43 @@ if torch.backends.mps.is_available():
 else:
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='ISIC2016', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
+    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
     return parser
 
 
 def main():
     opt = get_argparser().parse_args()
 
-    dataset_name = opt.dataset_name
-
-    logging.basicConfig(filename="./val/" + dataset_name + '_val' + '.log', filemode="w", encoding='utf-8',
-                        level=logging.DEBUG)
-    val_dataset = f"./val/{dataset_name}_{opt.use_box}/"
+    model_path = opt.model_path
+    dataset_model = f"{model_path}/{opt.dataset_name}"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
+    logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", encoding='utf-8', level=logging.DEBUG)
+    val_dataset = f"{prefix}/val/"
     if not os.path.exists(val_dataset):
         os.mkdir(val_dataset)
 
     # --------- 3. model define ---------
-    model_path = "./models_box/"
-    if opt.use_box == False:
-        model_path = "./models_no_box/"
-
-    checkpoint = f"{model_path}{dataset_name}_sam_best.pth"
+    best_checkpoint = f"{prefix}/sam_best.pth"
     # set up model
-    sam = sam_model_registry["vit_b"](checkpoint=checkpoint).to(device)
+    sam = sam_model_registry[opt.vit_type](checkpoint=best_checkpoint).to(device)
     sam.eval()
-    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
+    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
     with torch.no_grad():
         # --------- 4. inference for each image ---------
         interaction_total_dice = 0
         interaction_total_iou = 0
-        dataloader = dataloaders['val']
+        dataloader = dataloaders['test']
         for index, data in enumerate(dataloader):
             image_path = data["image_path"]
             print(f"index:{index + 1}/{len(dataloader)},image_path:{image_path}")
@@ -60,24 +60,32 @@ def main():
             size = data["size"]
             test_encode_feature = sam.image_encoder(test_input)
 
-            if opt.use_box:
-                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                    masks=None)
+            if opt.prompt_type == 1:
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                                                                                 boxes=prompt_box,
+                                                                                 masks=None)
+            elif opt.prompt_type == 2:
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                 masks=prompt_masks)
+            elif opt.prompt_type == 3:
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                                                                                 boxes=prompt_box,
+                                                                                 masks=prompt_masks)
             else:
-                test_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                    masks=prompt_masks)
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                 masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             test_mask, test_IOU = sam.mask_decoder(
                 image_embeddings=test_encode_feature,
                 image_pe=sam.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=test_sparse_embeddings,
-                dense_prompt_embeddings=train_dense_embeddings,
+                sparse_prompt_embeddings=val_sparse_embeddings,
+                dense_prompt_embeddings=val_dense_embeddings,
                 multimask_output=False)
 
             low_res_pred = torch.sigmoid(test_mask)
 
-            res_pre = torch.where(low_res_pred > 0.5, 255.0, 0)
+            res_pre = low_res_pred * 255
             ##################################### MEDSAM
             for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
                 arr = mPath.split("/")
@@ -86,6 +94,8 @@ def main():
                     arr = image_name.split("\\")
                     image_name = arr[len(arr) - 1]
                 save_image_name = val_dataset + image_name
+                if os.path.isfile(save_image_name):
+                    os.remove(save_image_name)
 
                 # 保存为灰度图
                 predict = pre.squeeze()

@@ -18,24 +18,26 @@ from segment_anything import sam_model_registry
 import torch.nn.functional as F
 
 # 设置了一些配置参数
-beta = [0.9, 0.999]
+beta = (0.9, 0.999)
 milestone = [60000, 86666]
 gamma = 0.1
 
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='MICCAI', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=25, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
-    parser.add_argument('--model_path', type=str, default='./models_box/', help='model path directory')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=False, help='is use box')
+    parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
+    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
     return parser.parse_known_args()[0]
 
 def main(opt):
@@ -52,43 +54,67 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    model_path = "./models_box/"
-    if not opt.use_box:
-        model_path = "./models_no_box/"
-    checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
-    if not os.path.exists(checkpoint):
-        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
-    sam = sam_model_registry['vit_b'](checkpoint=checkpoint)
+    model_path = opt.model_path
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    dataset_model = f"{model_path}/{opt.dataset_name}"
+    if not os.path.exists(dataset_model):
+        os.makedirs(dataset_model)
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
+    if not os.path.exists(prefix):
+        os.makedirs(prefix)
+
+    if opt.vit_type == "vit_b":
+        checkpoint = f'./work_dir/SAM/sam_vit_b_01ec64.pth'
+    elif opt.vit_type == "vit_h":
+        checkpoint = f'./work_dir/SAM/sam_vit_h_4b8939.pth'
+    else:
+        checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
+    sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
+
+    current_checkpoint = f"{prefix}/sam_current.pth"
+    best_checkpoint = f"{prefix}/sam_best.pth"
+    state_dict = {"tr_pl_loss_list": [],
+                  "tr_pl_miou_list": [],
+                  "tr_pl_dice_list": [],
+                  "val_pl_loss_list": [],
+                  "val_pl_miou_list": [],
+                  "val_pl_dice_list": [],
+                  "start": 0}
+    if os.path.exists(current_checkpoint):
+        state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
+        sam.load_state_dict(state_dict["model"])
+    start = state_dict["start"]
     sam = sam.to(device=device)
 
-    optimizer = optim.AdamW(sam.mask_decoder.parameters(),
-                            lr=lr, betas=beta, weight_decay=opt.weight_decay)
-
+    optimizer = optim.AdamW(sam.mask_decoder.parameters(), lr=lr, betas=beta, weight_decay=opt.weight_decay)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
-    # 脚本在各个检查点保存训练模型的状态字典，如果模型在验证集上取得最佳平均IOU，则单独保存最佳模型。
-    if len(os.listdir(model_path)) == 0:
-        save_path = os.path.join(model_path, f"{opt.dataset_name}_model_{opt.epochs}_{opt.batch_size}_0")
-        os.makedirs(save_path)
-    else:
-        save_path = os.path.join(model_path,
-                                 f"{opt.dataset_name}_model_{opt.epochs}_{opt.batch_size}_" + str(
-                                     len(os.listdir(model_path))))
-        os.makedirs(save_path)
-
     print('Training Start')
-    best_loss = 999999999
 
-    best_mIOU = 0
+    tr_pl_loss_list = state_dict["tr_pl_loss_list"]
+    tr_pl_miou_list = state_dict["tr_pl_miou_list"]
+    tr_pl_dice_list = state_dict["tr_pl_dice_list"]
+    val_pl_loss_list = state_dict["val_pl_loss_list"]
+    val_pl_miou_list = state_dict["val_pl_miou_list"]
+    val_pl_dice_list = state_dict["val_pl_dice_list"]
 
-    tr_pl_loss_list = []
-    tr_pl_mi_list = []
 
-    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers)
-    for epoch in range(opt.epochs):
+    try:
+        best_loss = max(val_pl_loss_list)
+    except ValueError:
+        best_loss = 999999999
+    try:
+        best_mIOU = max(val_pl_miou_list)
+    except ValueError:
+        best_mIOU = 0
+
+    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
+    for epoch in range(start, opt.epochs):
         train_loss_list = []
         train_miou_list = []
-
+        train_dice_list = []
+        # -------------- train --------------
         sam.train()
         iterations = tqdm(dataloaders['train'])
 
@@ -105,12 +131,18 @@ def main(opt):
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
-                if opt.use_box:
+                if opt.prompt_type == 1:
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                     masks=None)
-                else:
+                                                                                         masks=None)
+                elif opt.prompt_type == 2:
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
                                                                                          masks=prompt_masks)
+                elif opt.prompt_type == 3:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                         masks=prompt_masks)
+                else:
+                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                         masks=None)
 
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
@@ -122,8 +154,9 @@ def main(opt):
             low_res_pred = torch.sigmoid(train_mask)
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
-            train_true_iou = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
+            train_true_iou, train_true_dice = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
+            train_dice_list = train_dice_list + train_true_dice.tolist()
 
             train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
             train_loss_one.backward()
@@ -141,68 +174,137 @@ def main(opt):
             pbar_desc = "Model train loss --- "
             pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
             pbar_desc += f", total mIOU: {np.mean(train_miou_list):.5f}"
+            pbar_desc += f", total dice: {np.mean(train_dice_list):.5f}"
             iterations.set_description(pbar_desc)
 
         train_loss = np.mean(train_loss_list)
         train_miou = np.mean(train_miou_list)
+        train_dice = np.mean(train_dice_list)
 
         torch.cuda.empty_cache()
         tr_pl_loss_list.append(train_loss)
-        tr_pl_mi_list.append(train_miou)
+        tr_pl_miou_list.append(train_miou)
+        tr_pl_dice_list.append(train_dice)
 
-        # sam.eval()
+        # -------------- eval --------------
+        sam.eval()
         scheduler.step()
+        print("train epoch:{:3d}, loss:{:3.4f}, mIOU:{:3.4f}, dice:{:3.4f}, best loss: {:3.4f}, best mIOU: {:3.4f})"
+              .format(epoch + 1 + epoch_add, train_loss, train_miou, train_dice, best_loss, best_mIOU))
 
-        model_path = model_path + opt.dataset_name + '_sam.pth'
+        val_loss_list = []
+        val_miou_list = []
+        val_dice_list = []
+        with torch.no_grad():
+            iterations = tqdm(dataloaders['test'])
+            # 循环进行模型的多轮训练
+            for val_data in iterations:
+                # 将训练数据移到指定设备，这里是GPU
+                val_input = val_data['image'].to(device)
+                val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
+                prompt_box = val_data["prompt_box"].to(device)
+                prompt_masks = val_data["prompt_masks"].to(device)
+
+                # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
+                val_encode_feature = sam.image_encoder(val_input)  # (3, 256, 64, 64)
+                if opt.prompt_type == 1:
+                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                                                                                         boxes=prompt_box,
+                                                                                         masks=None)
+                elif opt.prompt_type == 2:
+                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                         masks=prompt_masks)
+                elif opt.prompt_type == 3:
+                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                                                                                         boxes=prompt_box,
+                                                                                         masks=prompt_masks)
+                else:
+                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
+                                                                                         masks=None)
+                #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
+                val_mask, val_IOU = sam.mask_decoder(
+                    image_embeddings=val_encode_feature,
+                    image_pe=sam.prompt_encoder.get_dense_pe(),
+                    sparse_prompt_embeddings=val_sparse_embeddings,
+                    dense_prompt_embeddings=val_dense_embeddings,
+                    multimask_output=False)
+                low_res_pred = torch.sigmoid(val_mask)
+
+                # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
+                val_true_iou, val_true_dice = mean_iou(low_res_pred, val_target_mask, eps=1e-6)
+                val_miou_list = val_miou_list + val_true_iou.tolist()
+                val_dice_list = val_dice_list + val_true_dice.tolist()
+
+                val_loss_one = compute_loss(low_res_pred, val_target_mask, val_IOU, val_true_iou)
+
+                val_loss_list.append(val_loss_one.item())
+                pbar_desc = "Model val loss --- "
+                pbar_desc += f"Total loss: {np.mean(val_loss_list):.5f}"
+                pbar_desc += f", total mIOU: {np.mean(val_miou_list):.5f}"
+                pbar_desc += f", total dice: {np.mean(val_dice_list):.5f}"
+                iterations.set_description(pbar_desc)
+
+            val_loss = np.mean(val_loss_list)
+            val_miou = np.mean(val_miou_list)
+            val_dice = np.mean(val_dice_list)
+
+            torch.cuda.empty_cache()
+            val_pl_loss_list.append(val_loss)
+            val_pl_miou_list.append(val_miou)
+            val_pl_dice_list.append(val_dice)
+
+            if best_mIOU < val_miou:
+                best_loss = val_loss
+                best_mIOU = val_miou
+                torch.save(sam.state_dict(), best_checkpoint)
+                f = open(os.path.join(prefix, 'best.txt'), 'w')
+                f.write(f"Experimental Day: {datetime.now()}")
+                f.write("\n")
+                f.write(f"mIoU: {str(best_mIOU)}")
+                f.write("\n")
+                f.write(f"epochs:{opt.epochs}")
+                f.write("\n")
+                f.write(f"batch_size:{opt.batch_size}")
+                f.write("\n")
+                f.write(f"learning_rate:{opt.lr}")
+                f.write("\n")
+                f.write(f"Data_set : {opt.dataset_name}")
+                f.close()
+
+        print("val epoch:{:3d}, loss:{:3.4f}, mIOU:{:3.4f}, dice:{:3.4f}, best loss: {:3.4f}, best mIOU: {:3.4f})"
+              .format(epoch + 1 + epoch_add, val_loss, val_miou, val_dice, best_loss, best_mIOU))
+
+        state_dict = {"tr_pl_loss_list": tr_pl_loss_list,
+                      "tr_pl_miou_list": tr_pl_miou_list,
+                      "tr_pl_dice_list": tr_pl_dice_list,
+                      "val_pl_loss_list": val_pl_loss_list,
+                      "val_pl_miou_list": val_pl_miou_list,
+                      "val_pl_dice_list": val_pl_dice_list,
+                      "model": sam.state_dict(),
+                      "start": epoch+1}
+        torch.save(state_dict, current_checkpoint)
         sam = sam.to(device)
-
-        if best_mIOU < train_miou:
-            best_loss = train_loss
-            best_mIOU = train_miou
-            best_path = save_path + f'/{opt.dataset_name}_sam_best.pth'
-            torch.save(sam.state_dict(), best_path)
-            sam = sam.to(device)
-            f = open(os.path.join(save_path, 'best.txt'), 'w')
-            f.write(f"Experimental Day: {datetime.now()}")
-            f.write("\n")
-            f.write(f"mIoU: {str(best_mIOU)}")
-            f.write("\n")
-            f.write(f"epochs:{opt.epochs}")
-            f.write("\n")
-            f.write(f"batch_size:{opt.batch_size}")
-            f.write("\n")
-            f.write(f"learning_rate:{opt.lr}")
-            f.write("\n")
-            f.write(f"Data_set : {opt.dataset_name}")
-            f.close()
-
-        print("epoch : {:3d}, train loss : {:3.4f}, train mIOU : {:3.4f}, best loss : {:3.4f}, best mIOU : {:3.4f})"
-              .format(epoch + 1 + epoch_add, train_loss, train_miou, best_loss, best_mIOU))
-
-        lr = optimizer.param_groups[0]["lr"]
-
-        if (epoch + 1) % 5 == 0:
-            model_path1 = save_path + "/" + opt.dataset_name + "_sam_" + str(epoch + 1 + epoch_add) + '_' + str(
-                round(lr, 10)) + '.pth'
-            torch.save(sam.state_dict(), model_path1)
-            sam = sam.to(device)
 
     # (2, 2) 形式的图使用matplotlib可视化训练进展，生成用于训练和验证平均IOU、训练和验证损失的图表。
     plt_dict = {
-        "Train_mIoU": tr_pl_mi_list,
         "Train_Loss": tr_pl_loss_list,
+        "Train_mIoU": tr_pl_miou_list,
+        "Train_dice": tr_pl_dice_list,
+        "val_Loss": val_pl_loss_list,
+        "val_mIoU": val_pl_miou_list,
+        "val_dice": val_pl_dice_list,
     }
 
-    plt.figure(figsize=(15, 15))
+    plt.figure(figsize=(20, 20))
     for i, (key, item) in enumerate(plt_dict.items()):
-        plt.subplot(2, 2, i + 1)
+        plt.subplot(3, 2, i + 1)
         plt.plot(range(opt.epochs), item, label=f"{key}")
-        plt.title(f"{key}", fontsize=20)
-        plt.xlabel('Epochs', fontsize=15)
+        plt.title(f"{key}", fontsize=16)
+        plt.xlabel('Epochs', fontsize=12)
         plt.ylabel(f'{key.split("_")[-1]}', fontsize=15)
         plt.grid(True)
 
-    plt.savefig(save_path + f'/{opt.dataset_name}_sam_{opt.epochs}_{opt.batch_size}_{opt.lr}_result.png')
+    plt.savefig(f'{prefix}/result_lr_{opt.lr}.png')
 
 
 if __name__ == '__main__':
