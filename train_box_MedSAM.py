@@ -108,6 +108,10 @@ def main(opt):
         best_mIOU = max(val_pl_miou_list)
     except ValueError:
         best_mIOU = 0
+    try:
+        best_dice = max(val_pl_dice_list)
+    except ValueError:
+        best_dice = 0
 
     dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
     for epoch in range(start, opt.epochs):
@@ -189,8 +193,6 @@ def main(opt):
         # -------------- eval --------------
         sam.eval()
         scheduler.step()
-        print("train epoch:{:3d}, loss:{:3.4f}, mIOU:{:3.4f}, dice:{:3.4f}, best loss: {:3.4f}, best mIOU: {:3.4f})"
-              .format(epoch + 1 + epoch_add, train_loss, train_miou, train_dice, best_loss, best_mIOU))
 
         val_loss_list = []
         val_miou_list = []
@@ -254,13 +256,15 @@ def main(opt):
             val_pl_dice_list.append(val_dice)
 
             if best_mIOU < val_miou:
-                best_loss = val_loss
                 best_mIOU = val_miou
+                best_dice = val_dice
                 torch.save(sam.state_dict(), best_checkpoint)
                 f = open(os.path.join(prefix, 'best.txt'), 'w')
                 f.write(f"Experimental Day: {datetime.now()}")
                 f.write("\n")
                 f.write(f"mIoU: {str(best_mIOU)}")
+                f.write("\n")
+                f.write(f"dice: {str(best_dice)}")
                 f.write("\n")
                 f.write(f"epochs:{opt.epochs}")
                 f.write("\n")
@@ -277,8 +281,8 @@ def main(opt):
                 f.write(f"data_set : {opt.dataset_name}")
                 f.close()
 
-        print("val epoch:{:3d}, loss:{:3.4f}, mIOU:{:3.4f}, dice:{:3.4f}, best loss: {:3.4f}, best mIOU: {:3.4f})"
-              .format(epoch + 1 + epoch_add, val_loss, val_miou, val_dice, best_loss, best_mIOU))
+        print("val epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
+              .format(epoch + 1 + epoch_add, val_miou, val_dice, best_mIOU, best_dice))
 
         state_dict = {"tr_pl_loss_list": tr_pl_loss_list,
                       "tr_pl_miou_list": tr_pl_miou_list,
