@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 from U2_Net.data_loader import SalObjDataset, RescaleT, ToTensorLab
 from U2_Net.model import U2NET
-from utils.data_convert import getDatasets, save_output, calculate_iou_dice, mean_iou
+from utils.data_convert import getDatasets, save_output, calculate_iou_dice, mean_iou, calculate_iou_dice1
 import argparse
 import torch
 import shutil
@@ -105,7 +105,7 @@ def main(opt):
             imo = im.resize((w, h), resample=Image.BILINEAR)
             imo.save(save_image_name)
 
-            u2net_iou, u2net_dice = calculate_iou_dice(save_image_name, mask_path)
+            u2net_iou, u2net_dice = calculate_iou_dice1(save_image_name, mask_path)
             total_dice += u2net_dice.item()
             total_iou += u2net_iou.item()
             print("index:{}/{}, image:{}, u2net_dice:{}, u2net_iou:{}".

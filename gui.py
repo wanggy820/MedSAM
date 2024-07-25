@@ -606,4 +606,30 @@ prompt
 sam  论文
 medsam 论文
 
+
+数据集膨胀、 轮廓方式
+
+
+
+ratio=1.0
+
+
+
+1.****消除 sam predict 毛刺 ****
+
+
+训练
+2. MULTI-TASK LEARNING FOR THYROID NODULE SEGMENTATION WITH THYROID REGION PRIOR  对比
+
+
+u2net  找一个更好的网络
+deepv3+ mean iou:0.844449, mean dice:0.915332
+
+3.
+ratio=1.0
+
+4.不加prompt
+
+
+
 '''

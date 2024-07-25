@@ -24,29 +24,33 @@ class MedAuxiliarySAM(nn.Module):
         mask_decoder,
         prompt_encoder,
         u2net,
-        bbox_shift=0
+        device,
+        bbox_shift=0,
     ):
         super().__init__()
         self.image_encoder = image_encoder
         self.mask_decoder = mask_decoder
         self.prompt_encoder = prompt_encoder
         self.u2net = u2net
+        self.device = device
         self.bbox_shift = bbox_shift
         # freeze prompt encoder
         for param in self.prompt_encoder.parameters():
             param.requires_grad = False
 
-    def forward(self, image, auxiliary_image):
+    def forward(self, image, auxiliary_image, user_box=True):
+        auxiliary_image = auxiliary_image.to(self.device)
         d0, d1, d2, d3, d4, d5, d6 = self.u2net(auxiliary_image)
 
         prompt_masks = []
+        prompt_boxes = []
         output_size = 1024
         for r in d0:
             r = r.squeeze()
             y_indices, x_indices = np.where(r.detach().cpu().numpy() > 0.5)
             if len(y_indices) == 0 or len(x_indices) == 0:
                 x_min = y_min = 0
-                x_max = y_max = self.img_size
+                x_max = y_max = output_size
             else:
                 x_min, x_max = np.min(x_indices), np.max(x_indices)
                 y_min, y_max = np.min(y_indices), np.max(y_indices)
@@ -56,7 +60,7 @@ class MedAuxiliarySAM(nn.Module):
                 y_max = min(output_size, y_max + random.randint(0, self.bbox_shift))
 
             box_1024 = np.array([x_min, y_min, x_max, y_max])*4
-
+            prompt_boxes.append(box_1024)
             bbox_shift = random.randint(0, self.bbox_shift * 2)
             ratio = min(bbox_shift / (x_max - x_min) + 1, 1.5)
             ratio = max(ratio, 1)
@@ -80,15 +84,24 @@ class MedAuxiliarySAM(nn.Module):
             prompt_mask = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
             prompt_masks.append(prompt_mask)
 
-        prompt_masks = torch.stack(prompt_masks)
+        prompt_masks = torch.stack(prompt_masks).to(self.device)
+        prompt_boxes = np.array(prompt_boxes)
+        prompt_boxes = torch.from_numpy(prompt_boxes).to(self.device)
         image_embedding = self.image_encoder(image)  # (B, 256, 64, 64)
         # do not compute gradients for prompt encoder
         with torch.no_grad():
-            sparse_embeddings, dense_embeddings = self.prompt_encoder(
-                points=None,
-                boxes=None,
-                masks=prompt_masks,
-            )
+            if user_box:
+                sparse_embeddings, dense_embeddings = self.prompt_encoder(
+                    points=None,
+                    boxes=prompt_boxes,
+                    masks=None,
+                )
+            else:
+                sparse_embeddings, dense_embeddings = self.prompt_encoder(
+                    points=None,
+                    boxes=None,
+                    masks=prompt_masks,
+                )
         low_res_masks, iou = self.mask_decoder(
             image_embeddings=image_embedding,  # (B, 256, 64, 64)
             image_pe=self.prompt_encoder.get_dense_pe(),  # (1, 256, 64, 64)
