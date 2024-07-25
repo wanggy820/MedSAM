@@ -268,6 +268,12 @@ def main(opt):
                 f.write("\n")
                 f.write(f"learning_rate:{opt.lr}")
                 f.write("\n")
+                f.write(f"vit_type:{opt.vit_type}")
+                f.write("\n")
+                f.write(f"prompt_type:{opt.prompt_type}")
+                f.write("\n")
+                f.write(f"ratio:{opt.ratio}")
+                f.write("\n")
                 f.write(f"Data_set : {opt.dataset_name}")
                 f.close()
 
