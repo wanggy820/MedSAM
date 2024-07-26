@@ -85,7 +85,8 @@ def main():
 
             low_res_pred = torch.sigmoid(test_mask)
 
-            res_pre = low_res_pred * 255
+            # res_pre = low_res_pred * 255
+            res_pre = torch.where(low_res_pred > 0.5, 255.0, 0.0)
             ##################################### MEDSAM
             for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
                 arr = mPath.split("/")
@@ -98,7 +99,20 @@ def main():
                     os.remove(save_image_name)
 
                 # 保存为灰度图
-                predict = pre.squeeze()
+                # 保存为灰度图
+                predict = pre.unsqueeze(0)
+
+                height = h.item()
+                width = w.item()
+                if height > width:
+                    height = sam.image_encoder.img_size
+                    width = int(w.item()*sam.image_encoder.img_size/h.item())
+                else:
+                    width = sam.image_encoder.img_size
+                    height = int(h.item()*sam.image_encoder.img_size/w.item())
+                predict = sam.postprocess_masks(predict, (height, width),
+                                                (h.item(), w.item()))
+                predict = predict.squeeze()
                 predict_np = predict.cpu().data.numpy()
                 im = Image.fromarray(predict_np).convert('L')
                 imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
