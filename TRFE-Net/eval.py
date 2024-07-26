@@ -41,11 +41,11 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpu', type=str, default='0')
     parser.add_argument('-model_name', type=str,
-                        default='trfe')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
+                        default='trfeplus')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
     parser.add_argument('-output_stride', type=int, default=16)
-    parser.add_argument('-load_path', type=str, default='./run/run_1/trfe_best.pth')
+    parser.add_argument('-load_path', type=str, default='./run/trfeplus/fold0/trfeplus_best.pth')
     parser.add_argument('-save_dir', type=str, default='./results')
     parser.add_argument('-test_dataset', type=str, default='TN3K')
     parser.add_argument('-test_fold', type=str, default='test')

@@ -150,7 +150,7 @@ def main(args):
     if args.resume_epoch == 0:
         print('Training ' + args.model_name + ' from scratch...')
     else:
-        load_path = os.path.join(save_dir, args.model_name + '_epoch-' + str(args.resume_epoch) + '.pth')
+        load_path = os.path.join(save_dir, args.model_name + '_best.pth')
         print('Initializing weights from: {}...'.format(load_path))
         net.load_state_dict(torch.load(load_path))
 
