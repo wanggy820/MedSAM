@@ -24,7 +24,7 @@ def make_dataset(root, seed):
 class TG3K(data.Dataset):
     def __init__(self, mode, transform=None, return_size=False):
         self.mode = mode
-        root = './data/tg3k/'
+        root = '../datasets/Thyroid_Dataset/tg3k/'
         trainval = json.load(open(root + 'tg3k-trainval.json', 'r')) 
         if mode == 'train':
             imgs = make_dataset(root, trainval['train'])

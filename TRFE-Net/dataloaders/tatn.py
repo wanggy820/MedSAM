@@ -36,7 +36,7 @@ def make_testset(root):
 class TATN(data.Dataset):
     def __init__(self, mode, transform=None, return_size=False, fold=0):
         self.mode = mode
-        root = './data/'
+        root = '../datasets/Thyroid_Dataset/'
         nodule_trainval = json.load(open(root + 'tn3k/tn3k-trainval-fold' + str(fold) + '.json', 'r'))  # seeds for k-fold cross validation
         thyroid_trainval = json.load(open(root + 'tg3k/tg3k-trainval.json', 'r'))  # seeds for k-fold cross validation
 
