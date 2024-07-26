@@ -31,6 +31,11 @@ from model.transunet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 from model.cpfnet import CPFNet
 from model.sgunet import SGUNet
 
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -96,7 +101,7 @@ def main(args):
     else:
         raise NotImplementedError
     net.load_state_dict(torch.load(args.load_path))
-    net.cuda()
+    net.to(device=device)
 
     composed_transforms_ts = transforms.Compose([
         trforms.FixedResize(size=(args.input_size, args.input_size)),
@@ -115,7 +120,7 @@ def main(args):
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    net.cuda()
+    net.to(device=device)
     net.eval()
     with torch.no_grad():
         all_start = time.time()
@@ -126,8 +131,8 @@ def main(args):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
 
-            labels = labels.cuda()
-            inputs = inputs.cuda()
+            labels = labels.to(device=device)
+            inputs = inputs.to(device=device)
             if 'trfe' in args.model_name or 'mtnet' in args.model_name:
                 if 'trfeplus' in args.model_name:
                     start = time.time()

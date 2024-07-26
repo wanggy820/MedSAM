@@ -20,7 +20,7 @@ def make_dataset(root, seed, name):
     return imgs
 
 
-def make_testset(root):
+def make_testset(root, name):
     imgs = []
     img_labels = {}
     img_names = os.listdir(root +'tn3k/test-image/')
@@ -59,7 +59,7 @@ class TATN(data.Dataset):
             nodule_imgs = make_dataset(root, nodule_trainval['val'], 'tn3k/trainval')
         
         elif mode == 'test':
-            nodule_imgs = make_dataset(root)
+            nodule_imgs = make_testset(root, 'test')
         
         self.marks = marks
         self.nodule_imgs = nodule_imgs

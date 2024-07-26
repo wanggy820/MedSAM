@@ -178,19 +178,16 @@ def getDatasets(dataset_name, root_dir, data_type):
 
         with open(data_dir + "tn3k-trainval-fold0.json", 'r', encoding='utf-8') as fp:
             data = json.load(fp)
-            if data_type == "test":
-                names = data["val"]
-            else:
-                names = data[data_type]
-        format = ".jpg"
-        for name in names:
-            image_path = data_dir + "Thyroid-image/" + "{:04d}".format(name) + format
-            mask_path = data_dir + "Thyroid-mask/" + "{:04d}".format(name) + format
-            auxiliary_path = mask_path
-            image_list.append(image_path)
-            mask_list.append(mask_path)
-            auxiliary_list.append(auxiliary_path)
-        return image_list, mask_list, auxiliary_list
+            names = data[data_type]
+            format = ".jpg"
+            for name in names:
+                image_path = data_dir + "trainval-image/" + "{:04d}".format(name) + format
+                mask_path = data_dir + "trainval-mask/" + "{:04d}".format(name) + format
+                auxiliary_path = mask_path
+                image_list.append(image_path)
+                mask_list.append(mask_path)
+                auxiliary_list.append(auxiliary_path)
+            return image_list, mask_list, auxiliary_list
 
 
     if dataset_name == "DRIVE":

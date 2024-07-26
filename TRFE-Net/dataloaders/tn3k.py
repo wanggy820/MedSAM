@@ -74,7 +74,7 @@ class TN3K(data.Dataset):
             label_name = os.path.basename(label_path)
             sample['label_name'] = label_name
 
-            return sample
+            return sample, sample
         # else:
         #     image_path = self.imgs[item]
         #     image = Image.open(image_path).convert('RGB')

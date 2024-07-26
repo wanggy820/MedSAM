@@ -62,7 +62,7 @@ def get_arguments():
     parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TATN')  # TN3K, TG3K, TATN
+    parser.add_argument('-dataset', type=str, default='TN3K')  # TN3K, TG3K, TATN
     parser.add_argument('-fold', type=str, default='0')
     parser.add_argument('-batch_size', type=int, default=16)
     parser.add_argument('-nepochs', type=int, default=40)
@@ -224,9 +224,9 @@ def main(args):
         for ii, sample_batched in enumerate(trainloader):
             if 'trfe' in args.model_name or args.model_name == 'mtnet':
                 nodules, glands = sample_batched
-                scale = nodules['scale'].cuda()
-                inputs_n, labels_n = nodules['image'].cuda(), nodules['label'].cuda()
-                inputs_g, labels_g = glands['image'].cuda(), glands['label'].cuda()
+                scale = nodules['scale'].to(device=device)
+                inputs_n, labels_n = nodules['image'].to(device=device), nodules['label'].to(device=device)
+                inputs_g, labels_g = glands['image'].to(device=device), glands['label'].to(device=device)
                 inputs = torch.cat([inputs_n[0].unsqueeze(0), inputs_g[0].unsqueeze(0)], dim=0)
 
                 for i in range(1, inputs_n.size()[0]):
@@ -253,7 +253,7 @@ def main(args):
                         thyroid_loss = 1 * criterion(thyroid[i], labels_g[int((i - 1) / 2)])
                         thyroid_loss_mini += thyroid_loss
                 if 'trfeplus' in args.model_name:
-                    mse_loss_mini = (1 - epoch / args.nepochs) * soft_mse(pred_scales.cuda(), scale.float())
+                    mse_loss_mini = (1 - epoch / args.nepochs) * soft_mse(pred_scales.to(device=device), scale.float())
                     loss += mse_loss_mini
                     log_txt.write(str(round(nodule_loss_mini.item(), 3)) + ' ' + str(
                         round(thyroid_loss_mini.item(), 3)) + ' ' + str(round(mse_loss_mini.item(), 3)) + '\n')
@@ -262,7 +262,7 @@ def main(args):
                         str(round(nodule_loss_mini.item(), 3)) + ' ' + str(round(thyroid_loss_mini.item(), 3)) + '\n')
                 loss += (nodule_loss_mini + thyroid_loss_mini)
             else:
-                inputs, labels = sample_batched['image'].cuda(), sample_batched['label'].cuda()
+                inputs, labels = sample_batched['image'].to(device=device), sample_batched['label'].to(device=device)
                 global_step += inputs.data.shape[0]
                 outputs = net.forward(inputs)
                 loss = criterion(outputs, labels)
@@ -324,7 +324,7 @@ def main(args):
             iou = 0
             net.eval()
             for ii, sample_batched in enumerate(testloader):
-                inputs, labels = sample_batched['image'].cuda(), sample_batched['label'].cuda()
+                inputs, labels = sample_batched['image'].to(device=device), sample_batched['label'].to(device=device)
                 with torch.no_grad():
                     if 'trfe' in args.model_name or args.model_name == 'mtnet':
                         if 'trfeplus' in args.model_name:
