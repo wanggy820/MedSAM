@@ -48,7 +48,7 @@ def main(opt):
     print("Loading model...")
 
     datasets = opt.datasets
-    image_list, mask_list = getDatasets(datasets, opt.data_dir, "val")
+    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "val")
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
