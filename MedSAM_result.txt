@@ -7,7 +7,7 @@ interaction(test dataset) mean iou:0.778984,interaction mean dice:0.875323
 U2net sam(val dataset) mean iou:0.923044,interaction mean dice:0.959204  ratio=1.01
 U2net sam(test dataset) mean iou:0.829970,interaction mean dice:0.905960
 
-Thyroid  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
+Thyroid-tg3k  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
 U2net mean iou:0.675431, mean dice:0.766860
 interaction(val dataset) box mean iou:0.674314,interaction mean dice:0.785088
 interaction(test dataset) box mean iou:0.651377,interaction mean dice:0.747135
@@ -15,6 +15,9 @@ interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
 interaction(test dataset) mean iou:0.661910,interaction mean dice:0.767368
 U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
 U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
+
+Thyroid-tn3k
+U2net mean iou:0.659591, mean dice:0.760811
 
 ##########################
 IoU = TP / (TP + FP + FN)
@@ -50,7 +53,8 @@ ratio=1.1 vit_h box, mask
 interaction mean iou:0.699001,interaction mean dice:0.804670
 ratio=1.02
 interaction mean iou:0.710902,interaction mean dice:0.812525
-
+ratio=1.00
+interaction mean iou:0.623139,interaction mean dice:0.730587
 IoU = TP / (TP + FP + FN)
 dice = 2*TP/(FP + FN + 2 * TP)
 ratio=1.1
@@ -73,6 +77,8 @@ deepv3+ mean iou:0.844449, mean dice:0.915332
 
 
 论文 实现 thyroid  iou: 0.6880, mae: 0.0319, dice: 0.7870
+
+recall: 0.8584, specificity: 0.9824, precision: 0.7923, F1_score:0.7916, acc: 0.9684, iou: 0.6910, mae: 0.0316, dice: 0.7916, hd: 14.7229, auc: 0.9204
 
 
 

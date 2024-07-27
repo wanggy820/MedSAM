@@ -25,17 +25,17 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='Thyroid', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid_tg3k', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=25, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=50, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
-    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.00, help='ratio')
     return parser.parse_known_args()[0]
@@ -81,9 +81,27 @@ def main(opt):
                   "val_pl_miou_list": [],
                   "val_pl_dice_list": [],
                   "start": 0}
+
+    tr_pl_loss_list = []
+    tr_pl_miou_list = []
+    tr_pl_dice_list = []
+    val_pl_loss_list = []
+    val_pl_miou_list = []
+    val_pl_dice_list = []
+    best_mIOU = 0
+    best_dice = 0
     if os.path.exists(current_checkpoint):
         state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
         sam.load_state_dict(state_dict["model"])
+        tr_pl_loss_list = state_dict["tr_pl_loss_list"]
+        tr_pl_miou_list = state_dict["tr_pl_miou_list"]
+        tr_pl_dice_list = state_dict["tr_pl_dice_list"]
+        val_pl_loss_list = state_dict["val_pl_loss_list"]
+        val_pl_miou_list = state_dict["val_pl_miou_list"]
+        val_pl_dice_list = state_dict["val_pl_dice_list"]
+
+        best_mIOU = max(val_pl_miou_list)
+        best_dice = max(val_pl_dice_list)
     start = state_dict["start"]
     sam = sam.to(device=device)
 
@@ -91,27 +109,6 @@ def main(opt):
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
     print('Training Start')
-
-    tr_pl_loss_list = state_dict["tr_pl_loss_list"]
-    tr_pl_miou_list = state_dict["tr_pl_miou_list"]
-    tr_pl_dice_list = state_dict["tr_pl_dice_list"]
-    val_pl_loss_list = state_dict["val_pl_loss_list"]
-    val_pl_miou_list = state_dict["val_pl_miou_list"]
-    val_pl_dice_list = state_dict["val_pl_dice_list"]
-
-
-    try:
-        best_loss = max(val_pl_loss_list)
-    except ValueError:
-        best_loss = 999999999
-    try:
-        best_mIOU = max(val_pl_miou_list)
-    except ValueError:
-        best_mIOU = 0
-    try:
-        best_dice = max(val_pl_dice_list)
-    except ValueError:
-        best_dice = 0
 
     dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
     for epoch in range(start, opt.epochs):

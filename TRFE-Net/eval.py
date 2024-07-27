@@ -57,7 +57,7 @@ def get_arguments():
 
 
 def main(args):
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    # os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     # FIXME add other models
     if 'deeplab' in args.model_name:
         if 'resnet101' in args.model_name:
@@ -100,7 +100,7 @@ def main(args):
         net = SGUNet(n_classes=args.num_classes)
     else:
         raise NotImplementedError
-    net.load_state_dict(torch.load(args.load_path))
+    net.load_state_dict(torch.load(args.load_path, map_location=device))
     net.to(device=device)
 
     composed_transforms_ts = transforms.Compose([
