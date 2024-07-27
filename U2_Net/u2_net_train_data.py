@@ -52,7 +52,7 @@ def main(opt):
     # ------- 2. set the directory of training dataset --------
     model_dir = os.path.join(os.getcwd(), 'saved_models', model_name + os.sep)
 
-    logging.basicConfig(filename=model_name + '_train_' + dataset_name + '.log', encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename=model_name + '_train_' + dataset_name + '.log', level=logging.DEBUG)
 
     epoch_num = opt.epochs
     batch_size_train = opt.batch_size
@@ -77,13 +77,13 @@ def main(opt):
         net = U2NETP(3, 1)
 
     model_file = model_dir + "u2net_bce_best_" + dataset_name + ".pth"
-    if os.path.exists(model_file):
-        net.load_state_dict(torch.load(model_file))
 
     if torch.backends.mps.is_available():
         device = torch.device("mps")
     else:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    if os.path.exists(model_file):
+        net.load_state_dict(torch.load(model_file, map_location=device))
     net.to(device)
 
     # ------- 4. define optimizer --------
@@ -93,14 +93,14 @@ def main(opt):
     # ------- 5. training process --------
     print("---start training...")
 
-    best_loss = 0
+    best_loss = 999999999
+    best_mIOU = 0
     for epoch in range(0, epoch_num):
         net.train()
 
         train_loss_list = []
         train_miou_list = []
-        best_loss = 999999999
-        best_mIOU = 0
+
         iterations = tqdm(train_dataloader)
         for i, data in enumerate(iterations):
             inputs, labels = data['image'], data['label']

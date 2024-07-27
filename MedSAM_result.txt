@@ -67,3 +67,12 @@ deepv3+ mean iou:0.844449, mean dice:0.915332
 
 
 
+
+
+
+
+
+论文 实现 thyroid  iou: 0.6880, mae: 0.0319, dice: 0.7870
+
+
+
