@@ -238,7 +238,7 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers, r
         datasets = MedSAMBox(sam, image_list, mask_list, auxiliary_list, bbox_shift=20, ratio=ratio)
         dataloaders[key] = DataLoader(
             datasets,
-            batch_size=batch_size,
+            batch_size=batch_size if key == 'train' else 1,
             shuffle=False if key != 'train' else True,
             num_workers=num_workers,
             pin_memory=False
