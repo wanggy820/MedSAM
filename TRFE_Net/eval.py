@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
+from TRFE_Net.dataloaders import tg3k
 from dataloaders import custom_transforms as trforms
 # Dataloaders includes
 from dataloaders import tn3k, ddti
@@ -110,7 +111,9 @@ def main(args):
 
     if args.test_dataset == 'TN3K':
         test_data = tn3k.TN3K(mode='test', transform=composed_transforms_ts, return_size=True)
-    if args.test_dataset == 'DDTI':
+    elif args.test_dataset == 'TG3K':
+        test_data = tg3k.TG3K(mode='test', transform=composed_transforms_ts, return_size=True)
+    elif args.test_dataset == 'DDTI':
         test_data = ddti.DDTI(transform=composed_transforms_ts, return_size=True)
 
     save_dir = args.save_dir + os.sep + args.test_fold + '-' + args.test_dataset + os.sep + args.model_name + os.sep + 'fold' + str(

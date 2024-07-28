@@ -48,6 +48,7 @@ class TG3K(data.Dataset):
 
             w, h = image.size
             size = (h, w)
+            scale = np.sum(label) / (w * h)
             sample = {'image': image, 'label': label}
 
             if self.transform:
@@ -57,6 +58,7 @@ class TG3K(data.Dataset):
 
             label_name = os.path.basename(label_path)
             sample['label_name'] = label_name
+            sample['scale'] = scale
             return sample
 
     def __len__(self):

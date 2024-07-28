@@ -62,10 +62,10 @@ def get_arguments():
     parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TN3K')  # TN3K, TG3K, TATN
+    parser.add_argument('-dataset', type=str, default='TG3K')  # TN3K, TG3K, TATN
     parser.add_argument('-fold', type=str, default='0')
     parser.add_argument('-batch_size', type=int, default=16)
-    parser.add_argument('-nepochs', type=int, default=40)
+    parser.add_argument('-nepochs', type=int, default=100)
     parser.add_argument('-resume_epoch', type=int, default=0)
 
     ## Optimizer settings
@@ -323,7 +323,7 @@ def main(args):
             count = 0
             iou = 0
             net.eval()
-            for ii, sample_batched in enumerate(testloader):
+            for ii, (sample_batched, _) in enumerate(testloader):
                 inputs, labels = sample_batched['image'].to(device=device), sample_batched['label'].to(device=device)
                 with torch.no_grad():
                     if 'trfe' in args.model_name or args.model_name == 'mtnet':
