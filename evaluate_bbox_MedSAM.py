@@ -4,7 +4,7 @@ import os
 from PIL import Image
 from segment_anything import sam_model_registry
 import logging
-from utils.data_convert import build_dataloader_box, calculate_dice_iou
+from utils.data_convert import build_dataloader_box, calculate_dice_iou, mean_iou
 from TRFE_Net.visualization.metrics import Metrics, evaluate
 
 if torch.backends.mps.is_available():
@@ -16,14 +16,14 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid_tg3k', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
-    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
-    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
+    parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     return parser
 
 
@@ -92,6 +92,18 @@ def main():
             metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
                            F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
             # res_pre = low_res_pred * 255
+            iou, dice = mean_iou(low_res_pred, mask, eps=1e-6)
+            interaction_total_dice += dice
+            interaction_total_iou += iou
+            print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                  .format(iou, dice))
+            print("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                  .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
+            logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                         .format(iou, dice))
+            logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                         .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
+
             res_pre = torch.where(low_res_pred > 0.5, 255.0, 0.0)
             ##################################### MEDSAM
             for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
@@ -123,18 +135,6 @@ def main():
                 im = Image.fromarray(predict_np).convert('L')
                 imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
                 imo.save(save_image_name)
-
-                dice, iou = calculate_dice_iou(save_image_name, mPath)
-                interaction_total_dice += dice
-                interaction_total_iou += iou
-                print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
-                      .format(iou, dice))
-                print("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
-                      .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
-                logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
-                             .format(iou, dice))
-                logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
-                             .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
 
         metrics_result = metrics.mean(len(dataloader))
         print("Test Result:")
