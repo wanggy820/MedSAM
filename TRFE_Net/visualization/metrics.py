@@ -65,7 +65,7 @@ def evaluate(pred, gt):
         # print('TP=0 now!')
         # print('Epoch: {}'.format(epoch))
         # print('i_batch: {}'.format(i_batch))
-        TP = torch.Tensor([1]).cuda()
+        TP = torch.Tensor([1]).to(pred.device)
 
     # recall
     Recall = TP / (TP + FN)

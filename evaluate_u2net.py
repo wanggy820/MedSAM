@@ -9,6 +9,7 @@ from U2_Net.model import U2NET
 from utils.data_convert import getDatasets, normPRED, save_output
 import argparse
 import torch
+from TRFE_Net.visualization.metrics import Metrics, evaluate
 warnings.filterwarnings(action='ignore')
 
 
@@ -19,7 +20,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='Thyroid_tn3k', help='model name')
+    parser.add_argument('--datasets', type=str, default='Thyroid_tg3k', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -48,7 +49,7 @@ def main(opt):
     print("Loading model...")
 
     datasets = opt.datasets
-    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "val")
+    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "test")
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'
@@ -68,6 +69,7 @@ def main(opt):
     net.eval()
     total_dice = 0
     total_iou = 0
+    metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
     for index, data in enumerate(test_loader):
         with torch.no_grad():
             inferencing = image_list[index]
@@ -75,11 +77,15 @@ def main(opt):
             labels = data["label"]
             #####################################  U2Net
             inputs = inputs.type(torch.FloatTensor).to(device)
+            labels = labels.type(torch.FloatTensor).to(device)
             d1, d2, d3, d4, d5, d6, d7 = net(inputs)
             u2net_dice, u2net_iou = dice_iou_function(d1.cpu().numpy(), labels.cpu().numpy())
             total_dice += u2net_dice
             total_iou += u2net_iou
             print("inferencing:{},u2net_dice:{},u2net_iou:{}".format(inferencing, u2net_dice, u2net_iou))
+            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(d1, labels)
+            metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
+                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
 
             arr = inferencing.split("/")
             path = ""
@@ -99,6 +105,13 @@ def main(opt):
             pred = normPRED(pred)
             save_output(inferencing, pred, path)
     print("mean iou:{:.6f}, mean dice:{:.6f}".format(total_iou/len(test_loader), total_dice/len(test_loader)))
+    metrics_result = metrics.mean(len(test_loader))
+    print(
+        'recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
+        % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
+           metrics_result['F1_score'],
+           metrics_result['acc'], metrics_result['iou'], metrics_result['mae'], metrics_result['dice'],
+           metrics_result['hd'], metrics_result['auc']))
 
 
 if __name__ == '__main__':

@@ -127,7 +127,7 @@ def main(args):
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         total_iou = 0
         total_cost_time = 0
-        for sample_batched in tqdm(testloader):
+        for sample_batched, _ in tqdm(testloader):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
 

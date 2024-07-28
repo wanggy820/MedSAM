@@ -9,6 +9,7 @@ U2net sam(test dataset) mean iou:0.829970,interaction mean dice:0.905960
 
 Thyroid-tg3k  由于没有test mask, 用val代替,但mask用的是u2net的预测结果   ratio=1.02
 U2net mean iou:0.675431, mean dice:0.766860
+recall: 0.7056, specificity: 0.9961, precision: 0.9335, F1_score:0.7618, acc: 0.9795, iou: 0.6773, mae: 0.0209, dice: 0.7618, hd: 32.7331, auc: 0.8508
 interaction(val dataset) box mean iou:0.674314,interaction mean dice:0.785088
 interaction(test dataset) box mean iou:0.651377,interaction mean dice:0.747135
 interaction(val dataset) mask mean iou:0.708867,interaction mean dice:0.817574
@@ -18,6 +19,7 @@ U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
 
 Thyroid-tn3k
 U2net mean iou:0.659591, mean dice:0.760811
+recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
 
 ##########################
 IoU = TP / (TP + FP + FN)
