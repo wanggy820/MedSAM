@@ -1,9 +1,13 @@
 import glob
 import json
 import os
+
+import monai
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from torch import nn
+
 from MedSAM_Dataset import MedSAM_Dataset
 from torch.utils.data import DataLoader
 from skimage import io
@@ -40,13 +44,20 @@ def dice_function(pred, target, smooth=1.0):
 
     return ((2. * intersection + smooth) /
                 (pred_flat.sum() + target_flat.sum() + smooth))
+
+seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")
+ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
 def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
     # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
-    fl = focal_loss(pred_mask, true_mask)
-    dl = dice_loss(pred_mask, true_mask)
-    mask_loss = 20 * fl + dl
-    iou_loss = F.mse_loss(pred_iou, true_iou)
-    total_loss = mask_loss + iou_loss
+    # fl = focal_loss(pred_mask, true_mask)
+    # dl = dice_loss(pred_mask, true_mask)
+    # mask_loss = 20 * fl + dl
+    # iou_loss = F.mse_loss(pred_iou, true_iou)
+    # total_loss = mask_loss + iou_loss
+
+    total_loss = seg_loss(pred_mask, true_mask) + ce_loss(
+        pred_mask, true_mask.float()
+    )
 
     return total_loss
 

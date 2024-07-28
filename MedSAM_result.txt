@@ -62,7 +62,9 @@ interaction mean iou:0.778233,interaction mean dice:0.865424
 
 ratio=1.02
 interaction mean iou:0.803617,interaction mean dice:0.881377
-
+interaction mean iou:0.761850,interaction mean dice:0.822677
+ratio=1.00
+interaction mean iou:0.766819,interaction mean dice:0.824059
 ###########MICCAI
 ratio=1.1 vit_h box, mask
 interaction mean iou:0.785321,interaction mean dice:0.879006
