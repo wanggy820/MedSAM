@@ -5,6 +5,7 @@ from PIL import Image
 from segment_anything import sam_model_registry
 import logging
 from utils.data_convert import build_dataloader_box, calculate_dice_iou
+from TRFE_Net.visualization.metrics import Metrics, evaluate
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -44,6 +45,7 @@ def main():
     sam.eval()
     dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
     with torch.no_grad():
+        metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         # --------- 4. inference for each image ---------
         interaction_total_dice = 0
         interaction_total_iou = 0
@@ -57,6 +59,7 @@ def main():
             test_input = data['image'].to(device)
             prompt_box = data["prompt_box"].to(device)
             prompt_masks = data["prompt_masks"].to(device)
+            mask = data['mask'].to(device, dtype=torch.float32)
             size = data["size"]
             test_encode_feature = sam.image_encoder(test_input)
 
@@ -85,6 +88,9 @@ def main():
 
             low_res_pred = torch.sigmoid(test_mask)
 
+            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, mask)
+            metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
+                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
             # res_pre = low_res_pred * 255
             res_pre = torch.where(low_res_pred > 0.5, 255.0, 0.0)
             ##################################### MEDSAM
@@ -130,6 +136,13 @@ def main():
                 logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
                              .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
 
+        metrics_result = metrics.mean(len(dataloader))
+        print("Test Result:")
+        print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
+            % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
+               metrics_result['F1_score'],
+               metrics_result['acc'], metrics_result['iou'], metrics_result['mae'], metrics_result['dice'],
+               metrics_result['hd'], metrics_result['auc']))
 
 if __name__ == "__main__":
     main()
