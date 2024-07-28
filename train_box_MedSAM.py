@@ -16,6 +16,7 @@ import torch
 from torch import optim
 from segment_anything import sam_model_registry
 import torch.nn.functional as F
+from TRFE_Net.visualization.metrics import Metrics, evaluate
 
 # 设置了一些配置参数
 beta = (0.9, 0.999)
@@ -196,6 +197,9 @@ def main(opt):
         val_dice_list = []
         with torch.no_grad():
             iterations = tqdm(dataloaders['test'])
+            metrics = Metrics(
+                ['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
+
             # 循环进行模型的多轮训练
             for val_data in iterations:
                 # 将训练数据移到指定设备，这里是GPU
@@ -235,6 +239,9 @@ def main(opt):
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
                 val_loss_one = compute_loss(low_res_pred, val_target_mask, val_IOU, val_true_iou)
+                _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
+                metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
+                               F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
 
                 val_loss_list.append(val_loss_one.item())
                 pbar_desc = "Model val loss --- "
@@ -280,6 +287,14 @@ def main(opt):
 
         print("val epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
               .format(epoch + 1 + epoch_add, val_miou, val_dice, best_mIOU, best_dice))
+
+        metrics_result = metrics.mean(len(dataloaders['test']))
+        print(
+            'recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
+            % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
+               metrics_result['F1_score'],
+               metrics_result['acc'], metrics_result['iou'], metrics_result['mae'], metrics_result['dice'],
+               metrics_result['hd'], metrics_result['auc']))
 
         state_dict = {"tr_pl_loss_list": tr_pl_loss_list,
                       "tr_pl_miou_list": tr_pl_miou_list,

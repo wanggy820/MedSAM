@@ -183,5 +183,5 @@ feature_map_sam/*
 datasets/*
 segment_anything_u2net/val/*
 save_models/*
-TRFE-Net/run/*
-TRFE-Net/results/*
+TRFE_Net/run/*
+TRFE_Net/results/*
