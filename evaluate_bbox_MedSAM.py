@@ -93,6 +93,8 @@ def main():
                            F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
             # res_pre = low_res_pred * 255
             iou, dice = mean_iou(low_res_pred, mask, eps=1e-6)
+            iou = iou.item()
+            dice = dice.item()
             interaction_total_dice += dice
             interaction_total_iou += iou
             print("interaction iou:{:3.6f}, interaction dice:{:3.6f}"

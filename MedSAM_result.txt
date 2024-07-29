@@ -17,10 +17,6 @@ interaction(test dataset) mean iou:0.661910,interaction mean dice:0.767368
 U2net sam(val dataset) mean iou:0.794779,interaction mean dice:0.883922
 U2net sam(test dataset) mean iou:0.617854,interaction mean dice:0.734226
 
-Thyroid-tn3k
-U2net mean iou:0.659591, mean dice:0.760811
-recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
-
 ##########################
 IoU = TP / (TP + FP + FN)
 dice = 2*TP/(FP + FN + 2 * TP)
@@ -50,11 +46,15 @@ U2net sam(test dataset) mean iou:0.691048,interaction mean dice:0.782871
 
 
 
-#########Thyroid
+
+
+
+
+#########Thyroid-tg3k
 ratio=1.1 vit_h box, mask
 interaction mean iou:0.699001,interaction mean dice:0.804670
 ratio=1.02
-interaction mean iou:0.710902,interaction mean dice:0.812525
+interaction mean iou:0.640323,interaction mean dice:0.744553
 ratio=1.00
 interaction mean iou:0.623139,interaction mean dice:0.730587
 IoU = TP / (TP + FP + FN)
@@ -67,6 +67,19 @@ interaction mean iou:0.803617,interaction mean dice:0.881377
 interaction mean iou:0.761850,interaction mean dice:0.822677
 ratio=1.00
 interaction mean iou:0.766819,interaction mean dice:0.824059
+
+#########Thyroid-tn3k
+U2net mean iou:0.659591, mean dice:0.760811
+recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
+
+sam ratio=1.00
+interaction mean iou:0.608225,interaction mean dice:0.696078
+recall: 0.7603, specificity: 0.9683, precision: 0.7263, F1_score:0.6961, acc: 0.9487, iou: 0.6082, mae: 0.0514, dice: 0.6961, hd: 28.0976, auc: 0.8642
+
+
+
+
+
 ###########MICCAI
 ratio=1.1 vit_h box, mask
 interaction mean iou:0.785321,interaction mean dice:0.879006

@@ -6,10 +6,10 @@ from torch.utils.data import Dataset
 from torch.nn import functional as F
 from segment_anything.utils.transforms import ResizeLongestSide
 from utils.box import find_bboxes
-
+from PIL import Image
 
 class MedSAMBox(Dataset):
-    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02):
+    def __init__(self, sam, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02, data_type='train'):
         self.device = sam.device
         self.preprocess = sam.preprocess
 
@@ -28,19 +28,19 @@ class MedSAMBox(Dataset):
         ratio = min(ratio, 2)
         ratio = max(ratio, 1)
         self.ratio = ratio
+        self.data_type = data_type
 
     def __len__(self):
         return len(self.image_list)
 
     def preprocessMask(self, mask_np, transform, size):
         mask = transform.apply_image(mask_np)  #
-        mask = torch.as_tensor(mask/255.0)
+        mask = torch.as_tensor(mask / 255.0)
         h, w = mask.shape[-2:]
         padh = size - h
         padw = size - w
         mask = F.pad(mask, (0, padw, 0, padh))
         return mask
-
 
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
@@ -50,6 +50,31 @@ class MedSAMBox(Dataset):
 
         img = cv2.imread(image_path)  # 读取原图数据
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+        if self.data_type == 'train':
+            r = random.random()  # 随机翻转
+            if r < 0.25:
+                img = np.flip(img)
+                mask_np = np.flip(mask_np)
+                auxiliary_np = np.flip(auxiliary_np)
+            elif r < 0.5:
+                img = np.rot90(img, k=1)
+                mask_np = np.rot90(mask_np, k=1)
+                auxiliary_np = np.rot90(auxiliary_np, k=1)
+            elif r < 0.75:
+                img = np.rot90(img, k=3)
+                mask_np = np.rot90(mask_np, k=3)
+                auxiliary_np = np.rot90(auxiliary_np, k=3)
+
+            r = random.random()  # 随机裁剪
+            H, W = img.shape[0], img.shape[1]
+            if r < 0.8:
+                top = np.random.randint(0, H / 8)
+                left = np.random.randint(0, W / 8)
+                img = img[top: H, left: W]
+                mask_np = mask_np[top: H, left: W]
+                auxiliary_np = auxiliary_np[top: H, left: W]
 
         img = self.transform_image.apply_image(img)  #
         img = torch.as_tensor(img)  # torch tensor 变更
@@ -58,14 +83,13 @@ class MedSAMBox(Dataset):
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
         #####################################
 
-        mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)
         mask_256 = torch.as_tensor(mask_256).unsqueeze(0)
 
         ##################################### 不能用 find_bboxes() 张量维度不一样
-        auxiliary_np = cv2.imread(auxiliary_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
+
         if (auxiliary_np > 0).sum() < 200:
-            auxiliary_np = (np.ones(auxiliary_np.shape)*255).astype(np.float32)
+            auxiliary_np = (np.ones(auxiliary_np.shape) * 255).astype(np.float32)
 
         auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
         auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
