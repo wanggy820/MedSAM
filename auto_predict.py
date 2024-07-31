@@ -24,21 +24,34 @@ def show_anns(anns):
     ax.imshow(img)
 
 
-image = cv2.imread('./datasets/MICCAI2023/val/image/A-90.png')
+image = cv2.imread('./dog.png')
 image = cv2.resize(image, None, fx=0.5, fy=0.5)
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-sam_checkpoint = "./work_dir/MedSAM/medsam_vit_b.pth"
+# sam_checkpoint = "./work_dir/MedSAM/medsam_vit_b.pth"
+sam_checkpoint = "./work_dir/SAM/sam_vit_b_01ec64.pth"
 model_type = "vit_b"
 
-device = "cuda"
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
 sam.to(device=device)
 # 自动生成采样点对图像进行分割
 mask_generator = SamAutomaticMaskGenerator(sam)
+mask_generator2 = SamAutomaticMaskGenerator(
+    model=sam,
+    points_per_side=32,
+    pred_iou_thresh=0.86,
+    stability_score_thresh=0.92,
+    crop_n_layers=1,
+    crop_n_points_downscale_factor=2,
+    min_mask_region_area=100,  # Requires open-cv to run post-processing
+)
 
-masks = mask_generator.generate(image)
+masks = mask_generator2.generate(image)
 
 print(len(masks))
 print(masks[0].keys())

@@ -106,7 +106,7 @@ class MedSAMBox(Dataset):
             y_min = max(0, y_min - random.randint(0, self.bbox_shift))
             y_max = min(self.img_size, y_max + random.randint(0, self.bbox_shift))
 
-        box_1024 = np.array([x_min, y_min, x_max, y_max])
+        box_1024 = np.array([[x_min, y_min, x_max, y_max]])
         box_1024 = box_1024.astype(np.int16)
 
         #####################################

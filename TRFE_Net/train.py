@@ -62,7 +62,7 @@ def get_arguments():
     parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TG3K')  # TN3K, TG3K, TATN
+    parser.add_argument('-dataset', type=str, default='TATN')  # TN3K, TG3K, TATN
     parser.add_argument('-fold', type=str, default='0')
     parser.add_argument('-batch_size', type=int, default=16)
     parser.add_argument('-nepochs', type=int, default=100)
@@ -224,7 +224,7 @@ def main(args):
         for ii, sample_batched in enumerate(trainloader):
             if 'trfe' in args.model_name or args.model_name == 'mtnet':
                 nodules, glands = sample_batched
-                scale = nodules['scale'].to(device=device)
+                scale = nodules['scale'].to(torch.float32).to(device=device)
                 inputs_n, labels_n = nodules['image'].to(device=device), nodules['label'].to(device=device)
                 inputs_g, labels_g = glands['image'].to(device=device), glands['label'].to(device=device)
                 inputs = torch.cat([inputs_n[0].unsqueeze(0), inputs_g[0].unsqueeze(0)], dim=0)
@@ -323,7 +323,7 @@ def main(args):
             count = 0
             iou = 0
             net.eval()
-            for ii, (sample_batched, _) in enumerate(testloader):
+            for ii, (sample_batched) in enumerate(testloader):
                 inputs, labels = sample_batched['image'].to(device=device), sample_batched['label'].to(device=device)
                 with torch.no_grad():
                     if 'trfe' in args.model_name or args.model_name == 'mtnet':
