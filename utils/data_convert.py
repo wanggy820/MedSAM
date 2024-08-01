@@ -207,11 +207,11 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
             return image_list, mask_list, auxiliary_list
 
     if dataset_name == "Thyroid" or dataset_name == "Thyroid_tatn":
-        image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list = getDatasets("Thyroid_tn3k", root_dir, data_type)
+        image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list = getDatasets("Thyroid_tn3k", root_dir, data_type, fold)
         if data_type == "test":
             return image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list
 
-        image_tg3k_list, mask_tg3k_list, auxiliary_tg3k_list = getDatasets("Thyroid_tg3k", root_dir, data_type)
+        image_tg3k_list, mask_tg3k_list, auxiliary_tg3k_list = getDatasets("Thyroid_tg3k", root_dir, data_type, fold)
         image_list = np.append(image_tn3k_list, image_tg3k_list)
         mask_list = np.append(mask_tn3k_list, mask_tg3k_list)
         auxiliary_list = np.append(auxiliary_tn3k_list, auxiliary_tg3k_list)
@@ -225,7 +225,7 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
             auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
             return image_list, mask_list, auxiliary_list
 
-        return getDatasets("Thyroid", root_dir, data_type)
+        return getDatasets("Thyroid", root_dir, data_type, fold)
 
     if dataset_name == "DRIVE":
         if data_type == "train":
