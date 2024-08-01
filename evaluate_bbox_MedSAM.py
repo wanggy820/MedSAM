@@ -6,7 +6,7 @@ import os
 from PIL import Image
 from segment_anything import sam_model_registry
 import logging
-from utils.data_convert import build_dataloader_box, calculate_dice_iou, mean_iou
+from utils.data_convert import mean_iou, build_dataloader
 from TRFE_Net.visualization.metrics import Metrics, evaluate
 
 if torch.backends.mps.is_available():
@@ -18,22 +18,27 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='Thyroid_tg3k', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid_tatn', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
+    parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
     parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
-    parser.add_argument('--prompt_type', type=int, default=1, help='0: None,1: box,2: mask,3: box and mask')
-    parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
+    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
+    parser.add_argument('-fold', type=int, default=0)
     return parser
 
 
 def main():
     opt = get_argparser().parse_args()
 
-    model_path = opt.model_path
-    dataset_model = f"{model_path}/{opt.dataset_name}"
+    save_models_path = opt.save_models_path
+
+    dataset_name = opt.dataset_name
+    if "Thyroid" in opt.dataset_name:
+        dataset_name = f"Thyroid_fold{opt.fold}"
+    dataset_model = f"{save_models_path}/{dataset_name}"
     prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
     logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
@@ -45,7 +50,7 @@ def main():
     # set up model
     sam = sam_model_registry[opt.vit_type](checkpoint=best_checkpoint).to(device)
     sam.eval()
-    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
+    dataloaders = build_dataloader(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
     with torch.no_grad():
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         # --------- 4. inference for each image ---------

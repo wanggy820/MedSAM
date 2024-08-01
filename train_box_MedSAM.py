@@ -3,7 +3,7 @@ import warnings
 
 import torchvision.utils
 
-from utils.data_convert import mean_iou, compute_loss, build_dataloader_box
+from utils.data_convert import mean_iou, compute_loss, build_dataloader
 
 warnings.filterwarnings(action='ignore')
 import numpy as np
@@ -26,7 +26,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid_ddti', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=4, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
@@ -35,10 +35,11 @@ def parse_opt():
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
+    parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
-    parser.add_argument('--prompt_type', type=int, default=1, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
+    parser.add_argument('-fold', type=int, default=0)
     return parser.parse_known_args()[0]
 
 def main(opt):
@@ -55,10 +56,13 @@ def main(opt):
     epoch_add = 0
     lr = opt.lr
 
-    model_path = opt.model_path
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-    dataset_model = f"{model_path}/{opt.dataset_name}"
+    save_models_path = opt.save_models_path
+    if not os.path.exists(save_models_path):
+        os.makedirs(save_models_path)
+    dataset_name = opt.dataset_name
+    if "Thyroid" in opt.dataset_name:
+        dataset_name = f"Thyroid_fold{opt.fold}"
+    dataset_model = f"{save_models_path}/{dataset_name}"
     if not os.path.exists(dataset_model):
         os.makedirs(dataset_model)
     prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
@@ -111,7 +115,8 @@ def main(opt):
 
     print('Training Start')
 
-    dataloaders = build_dataloader_box(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
+    dataloaders = build_dataloader(sam, opt.dataset_name, opt.data_dir, opt.batch_size,
+                                   opt.num_workers, opt.ratio, opt.fold)
     for epoch in range(start, opt.epochs):
         train_loss_list = []
         train_miou_list = []

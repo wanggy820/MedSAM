@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import torch
 from torch.autograd import Variable
@@ -29,6 +28,7 @@ def parse_opt():
     parser.add_argument('--lr', type=float, default=1e-3, help='learning_rate')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='../datasets/', help='data directory')
+    parser.add_argument('-fold', type=int, default=0)
     return parser.parse_known_args()[0]
 
 def muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v):
@@ -48,16 +48,18 @@ def muti_bce_loss_fusion(d0, d1, d2, d3, d4, d5, d6, labels_v):
 def main(opt):
 
     dataset_name = opt.dataset_name
+    if "Thyroid" in opt.dataset_name:
+        dataset_name = f"Thyroid_fold{opt.fold}"
     model_name = 'u2net'  # 'u2netp'
     # ------- 2. set the directory of training dataset --------
     model_dir = os.path.join(os.getcwd(), 'saved_models', model_name + os.sep)
 
-    logging.basicConfig(filename=model_name + '_train_' + dataset_name + '.log', level=logging.DEBUG)
+    logging.basicConfig(filename=model_name + '_train_' + opt.dataset_name + '.log', level=logging.DEBUG)
 
     epoch_num = opt.epochs
     batch_size_train = opt.batch_size
 
-    image_list, mask_list, auxiliary_list = getDatasets(dataset_name, opt.data_dir, "train")
+    image_list, mask_list, _ = getDatasets(opt.dataset_name, opt.data_dir, "train", opt.fold)
 
     salobj_dataset = SalObjDataset(
         img_name_list=image_list,

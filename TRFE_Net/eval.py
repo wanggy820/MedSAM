@@ -48,7 +48,7 @@ def get_arguments():
     parser.add_argument('-output_stride', type=int, default=16)
     parser.add_argument('-load_path', type=str, default='./run/trfeplus/fold0/trfe-plus_best.pth')
     parser.add_argument('-save_dir', type=str, default='./results')
-    parser.add_argument('-test_dataset', type=str, default='TN3K')
+    parser.add_argument('-test_dataset', type=str, default='DDTI')
     parser.add_argument('-test_fold', type=str, default='test')
     parser.add_argument('-fold', type=int, default=0)
     ## for transunet
@@ -128,7 +128,7 @@ def main(args):
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         total_iou = 0
         total_cost_time = 0
-        for sample_batched, _ in tqdm(testloader):
+        for sample_batched in tqdm(testloader):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
 

@@ -7,8 +7,8 @@ from PIL import Image
 
 class DDTI(data.Dataset):
 
-    def __init__(self, root='./data/DDTI', transform=None, return_size=False):
-        img_names = os.listdir(root+'/image')
+    def __init__(self, root='../datasets/DDTI/2_preprocessed_data/stage2', transform=None, return_size=False):
+        img_names = os.listdir(root+'/p_image')
         img_names = sorted(img_names, key=lambda i: int(i.split(".")[0]))
         self.root = root
         self.img_names = img_names
@@ -17,8 +17,8 @@ class DDTI(data.Dataset):
 
     def __getitem__(self, index: int):
         img_name = self.img_names[index]
-        image_path = os.path.join(self.root + '/image', img_name)
-        label_path = os.path.join(self.root + '/mask', img_name)
+        image_path = os.path.join(self.root + '/p_image', img_name)
+        label_path = os.path.join(self.root + '/p_mask', img_name)
         assert os.path.exists(image_path), ('{} does not exist'.format(image_path))
         assert os.path.exists(label_path), ('{} does not exist'.format(label_path))
 

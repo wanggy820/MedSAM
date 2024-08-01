@@ -3,6 +3,7 @@ import json
 import os
 
 import monai
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -36,6 +37,7 @@ def dice_loss(pred, target, smooth=1.0):
     return 1 - ((2. * intersection + smooth) /
                 (pred_flat.sum() + target_flat.sum() + smooth))
 
+
 def dice_function(pred, target, smooth=1.0):
     pred = F.sigmoid(pred).squeeze(1).to(dtype=torch.float32)
     pred_flat = pred.reshape(-1)
@@ -43,10 +45,13 @@ def dice_function(pred, target, smooth=1.0):
     intersection = (pred_flat * target_flat).sum()
 
     return ((2. * intersection + smooth) /
-                (pred_flat.sum() + target_flat.sum() + smooth))
+            (pred_flat.sum() + target_flat.sum() + smooth))
+
 
 seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")
 ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
+
+
 def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
     # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
     # fl = focal_loss(pred_mask, true_mask)
@@ -76,7 +81,8 @@ def mean_iou(preds, labels, eps=1e-6):
 
     return ious, dice
 
-def getDatasets(dataset_name, root_dir, data_type):
+
+def getDatasets(dataset_name, root_dir, data_type, fold):
     image_list = []
     mask_list = []
     auxiliary_list = []
@@ -187,7 +193,7 @@ def getDatasets(dataset_name, root_dir, data_type):
             auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
             return image_list, mask_list, auxiliary_list
 
-        with open(data_dir + "tn3k-trainval-fold0.json", 'r', encoding='utf-8') as fp:
+        with open(f"{data_dir}tn3k-trainval-fold{fold}.json", 'r', encoding='utf-8') as fp:
             data = json.load(fp)
             names = data[data_type]
             format = ".jpg"
@@ -200,6 +206,26 @@ def getDatasets(dataset_name, root_dir, data_type):
                 auxiliary_list.append(auxiliary_path)
             return image_list, mask_list, auxiliary_list
 
+    if dataset_name == "Thyroid" or dataset_name == "Thyroid_tatn":
+        image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list = getDatasets("Thyroid_tn3k", root_dir, data_type)
+        if data_type == "test":
+            return image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list
+
+        image_tg3k_list, mask_tg3k_list, auxiliary_tg3k_list = getDatasets("Thyroid_tg3k", root_dir, data_type)
+        image_list = np.append(image_tn3k_list, image_tg3k_list)
+        mask_list = np.append(mask_tn3k_list, mask_tg3k_list)
+        auxiliary_list = np.append(auxiliary_tn3k_list, auxiliary_tg3k_list)
+        return image_list, mask_list, auxiliary_list
+
+    if dataset_name == "Thyroid_ddti":
+        if data_type == "test":
+            data_dir = root_dir + "DDTI/2_preprocessed_data/stage2/"
+            image_list = sorted(glob.glob(data_dir + "p_image/*"))
+            mask_list = sorted(glob.glob(data_dir + "p_mask/*"))
+            auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
+            return image_list, mask_list, auxiliary_list
+
+        return getDatasets("Thyroid", root_dir, data_type)
 
     if dataset_name == "DRIVE":
         if data_type == "train":
@@ -217,24 +243,10 @@ def getDatasets(dataset_name, root_dir, data_type):
 
 
 # 数据加载
-def build_dataloader(sam, model_name, data_dir, batch_size, num_workers):
-    dataloaders = {}
-    for key in ['train', 'test']:
-        image_list, mask_list = getDatasets(model_name, data_dir, key)
-        dataloaders[key] = DataLoader(
-            MedSAM_Dataset(sam, image_list, mask_list),
-            batch_size=batch_size,
-            shuffle=True if key != 'test' else False,
-            num_workers=num_workers,
-            pin_memory=True
-        )
-    return dataloaders
-
-
-def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers, ratio):
+def build_dataloader(sam, dataset_name, data_dir, batch_size, num_workers, ratio, fold):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
-        image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key)
+        image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key, fold)
         datasets = MedSAMBox(sam, image_list, mask_list, auxiliary_list, bbox_shift=20, ratio=ratio, data_type=key)
         dataloaders[key] = DataLoader(
             datasets,
@@ -244,6 +256,7 @@ def build_dataloader_box(sam, dataset_name, data_dir, batch_size, num_workers, r
             pin_memory=False
         )
     return dataloaders
+
 
 def build_dataloader_u2net(sam, dataset_name, data_dir, batch_size, num_workers):
     dataloaders = {}
@@ -259,10 +272,12 @@ def build_dataloader_u2net(sam, dataset_name, data_dir, batch_size, num_workers)
         )
     return dataloaders
 
+
 # 定义转换管道
 transform = transforms.Compose([
     transforms.ToTensor(),  # 转换为Tensor
 ])
+
 
 def calculate_dice_iou1(pred, target, smooth=1e-6):
     pre_img = Image.open(pred)
@@ -287,6 +302,8 @@ def calculate_dice_iou1(pred, target, smooth=1e-6):
     DICE = 2 * IoU / (IoU + 1)
 
     return DICE, IoU
+
+
 def calculate_dice_iou(pred_path, mask_path, smooth=1e-5):
     pre_img = Image.open(pred_path)
     pred = transform(pre_img)
