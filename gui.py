@@ -587,7 +587,7 @@ https://pdf.sciencedirectassets.com/271150/1-s2.0-S0010482523X0002X/1-s2.0-S0010
 
 
 u2net  找一个更好的网络
-deepv3+ mean iou:0.844449, mean dice:0.915332
+
 
 3.
 ratio=1.0
@@ -600,6 +600,13 @@ ratio=1.0
 
 ***** medsam 评价标准
 
+
+mask 毛刺
+查看论文用的事原论文的结果还是自己训练的结果？？
+
+更换loss重新训练
+
+训练CPFNet
 '''
 
 

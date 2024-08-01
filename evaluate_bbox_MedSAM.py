@@ -1,4 +1,6 @@
 import argparse
+import numpy as np
+import cv2
 import torch
 import os
 from PIL import Image
@@ -21,8 +23,8 @@ def get_argparser():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--model_path', type=str, default='./save_models', help='model path directory')
-    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
-    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--prompt_type', type=int, default=1, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     return parser
 
@@ -106,7 +108,8 @@ def main():
             logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
                          .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
 
-            res_pre = torch.where(low_res_pred > 0.5, 255.0, 0.0)
+            # res_pre = torch.where(low_res_pred > 0.5, 255.0, 0.0)
+            res_pre = low_res_pred * 255.0
             ##################################### MEDSAM
             for mPath, pre, (w, h) in zip(mask_path, res_pre, size):
                 arr = mPath.split("/")
@@ -134,8 +137,14 @@ def main():
                                                 (h.item(), w.item()))
                 predict = predict.squeeze()
                 predict_np = predict.cpu().data.numpy()
-                im = Image.fromarray(predict_np).convert('L')
+                im = Image.fromarray(predict_np)
                 imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
+
+                gray_image_cv = cv2.cvtColor(np.array(imo), cv2.COLOR_RGB2BGR)
+                smooth = cv2.medianBlur(gray_image_cv, 5)
+                smooth1 = (smooth > 127)*255
+                imo = Image.fromarray(np.uint8(smooth1)).convert('L')
+
                 imo.save(save_image_name)
 
         metrics_result = metrics.mean(len(dataloader))

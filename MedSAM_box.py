@@ -122,7 +122,8 @@ class MedSAMBox(Dataset):
 
         auxiliary_ratio_masks += auxiliary_256
         auxiliary_ratio_masks = auxiliary_ratio_masks // 2 + auxiliary_ratio_masks % 2
-        prompt_masks = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
+        # prompt_masks = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
+        prompt_masks = (auxiliary_ratio_masks * 255).to(torch.float32).unsqueeze(0)
         #####################################
         h, w = mask_np.shape[-2:]
         size = np.array([w, h])

@@ -71,13 +71,13 @@ interaction mean iou:0.766819,interaction mean dice:0.824059
 #########Thyroid-tn3k
 U2net mean iou:0.659591, mean dice:0.760811
 recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
+sam box+mask+ratio=1.00 + trfeplus
+interaction mean iou:0.749487,interaction mean dice:0.837489
+recall: 0.8868, specificity: 0.9865, precision: 0.8388, F1_score:0.8375, acc: 0.9755, iou: 0.7495, mae: 0.0246, dice: 0.8375, hd: 13.3582, auc: 0.9366
 
-sam ratio=1.00
-interaction mean iou:0.608225,interaction mean dice:0.696078
-recall: 0.7603, specificity: 0.9683, precision: 0.7263, F1_score:0.6961, acc: 0.9487, iou: 0.6082, mae: 0.0514, dice: 0.6961, hd: 28.0976, auc: 0.8642
-
-
-
+sam box+mask+ratio=1.02 + trfeplus
+interaction mean iou:0.746289,interaction mean dice:0.835550
+recall: 0.8817, specificity: 0.9864, precision: 0.8394, F1_score:0.8356, acc: 0.9755, iou: 0.7463, mae: 0.0246, dice: 0.8356, hd: 13.3596, auc: 0.9340
 
 
 ###########MICCAI
@@ -95,7 +95,7 @@ deepv3+ mean iou:0.844449, mean dice:0.915332
 
 论文 实现 thyroid  iou: 0.6880, mae: 0.0319, dice: 0.7870
 
-recall: 0.8584, specificity: 0.9824, precision: 0.7923, F1_score:0.7916, acc: 0.9684, iou: 0.6910, mae: 0.0316, dice: 0.7916, hd: 14.7229, auc: 0.9204
+recall: 0.8719, specificity: 0.9838, precision: 0.8121, F1_score:0.8147, acc: 0.9713, iou: 0.7163, mae: 0.0287, dice: 0.8147, hd: 12.2701, auc: 0.9278
 
 
 
