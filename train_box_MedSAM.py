@@ -95,6 +95,7 @@ def main(opt):
     val_pl_dice_list = []
     best_mIOU = 0
     best_dice = 0
+    start = 0
     if os.path.exists(current_checkpoint):
         state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
         sam.load_state_dict(state_dict["model"])
@@ -107,7 +108,7 @@ def main(opt):
 
         best_mIOU = max(val_pl_miou_list)
         best_dice = max(val_pl_dice_list)
-    start = state_dict["start"]
+        start = state_dict["start"]
     sam = sam.to(device=device)
 
     optimizer = optim.AdamW(sam.mask_decoder.parameters(), lr=lr, betas=beta, weight_decay=opt.weight_decay)
