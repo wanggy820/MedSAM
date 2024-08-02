@@ -18,12 +18,12 @@ else:
 def get_argparser():
     parser = argparse.ArgumentParser()
     # model Options
-    parser.add_argument("--dataset_name", type=str, default='Thyroid_tatn', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid_tn3k', help="dataset name")
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
-    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
+    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
     parser.add_argument('-fold', type=int, default=0)
@@ -50,7 +50,7 @@ def main():
     # set up model
     sam = sam_model_registry[opt.vit_type](checkpoint=best_checkpoint).to(device)
     sam.eval()
-    dataloaders = build_dataloader(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio)
+    dataloaders = build_dataloader(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
     with torch.no_grad():
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         # --------- 4. inference for each image ---------

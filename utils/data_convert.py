@@ -190,7 +190,7 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
         if data_type == "test":
             image_list = sorted(glob.glob(data_dir + "test-image/*"))
             mask_list = sorted(glob.glob(data_dir + "test-mask/*"))
-            auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
+            auxiliary_list = sorted(glob.glob(f"{data_dir}fold{fold}/*"))
             return image_list, mask_list, auxiliary_list
 
         with open(f"{data_dir}tn3k-trainval-fold{fold}.json", 'r', encoding='utf-8') as fp:
@@ -206,26 +206,15 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
                 auxiliary_list.append(auxiliary_path)
             return image_list, mask_list, auxiliary_list
 
-    if dataset_name == "Thyroid" or dataset_name == "Thyroid_tatn":
-        image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list = getDatasets("Thyroid_tn3k", root_dir, data_type, fold)
-        if data_type == "test":
-            return image_tn3k_list, mask_tn3k_list, auxiliary_tn3k_list
-
-        image_tg3k_list, mask_tg3k_list, auxiliary_tg3k_list = getDatasets("Thyroid_tg3k", root_dir, data_type, fold)
-        image_list = np.append(image_tn3k_list, image_tg3k_list)
-        mask_list = np.append(mask_tn3k_list, mask_tg3k_list)
-        auxiliary_list = np.append(auxiliary_tn3k_list, auxiliary_tg3k_list)
-        return image_list, mask_list, auxiliary_list
-
     if dataset_name == "Thyroid_ddti":
         if data_type == "test":
             data_dir = root_dir + "DDTI/2_preprocessed_data/stage2/"
             image_list = sorted(glob.glob(data_dir + "p_image/*"))
             mask_list = sorted(glob.glob(data_dir + "p_mask/*"))
-            auxiliary_list = sorted(glob.glob(data_dir + "bbox/*"))
+            auxiliary_list = sorted(glob.glob(f"{data_dir}fold{fold}/*"))
             return image_list, mask_list, auxiliary_list
 
-        return getDatasets("Thyroid", root_dir, data_type, fold)
+        return getDatasets("Thyroid_tn3k", root_dir, data_type, fold)
 
     if dataset_name == "DRIVE":
         if data_type == "train":

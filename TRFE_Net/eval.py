@@ -110,7 +110,7 @@ def main(args):
         trforms.ToTensor()])
 
     if args.test_dataset == 'TN3K':
-        test_data = tn3k.TN3K(mode='test', transform=composed_transforms_ts, return_size=True)
+        test_data = tn3k.TN3K(mode='test', transform=composed_transforms_ts, return_size=True, fold=args.fold)
     elif args.test_dataset == 'DDTI':
         test_data = ddti.DDTI(transform=composed_transforms_ts, return_size=True)
 
