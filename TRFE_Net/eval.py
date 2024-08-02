@@ -46,7 +46,6 @@ def get_arguments():
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
     parser.add_argument('-output_stride', type=int, default=16)
-    parser.add_argument('-load_path', type=str, default='./run/trfeplus/fold0/trfe-plus_best.pth')
     parser.add_argument('-save_dir', type=str, default='./results')
     parser.add_argument('-test_dataset', type=str, default='DDTI')
     parser.add_argument('-test_fold', type=str, default='test')
@@ -101,7 +100,8 @@ def main(args):
         net = SGUNet(n_classes=args.num_classes)
     else:
         raise NotImplementedError
-    net.load_state_dict(torch.load(args.load_path, map_location=device))
+    load_path = f"./run/{args.model_name}/fold{args.fold}/{args.model_name}_best.pth"
+    net.load_state_dict(torch.load(load_path, map_location=device))
     net.to(device=device)
 
     composed_transforms_ts = transforms.Compose([
