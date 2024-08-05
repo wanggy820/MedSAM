@@ -20,7 +20,7 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets', type=str, default='Thyroid_tg3k', help='model name')
+    parser.add_argument('--datasets', type=str, default='Thyroid_ddti', help='model name')
     parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--num_workers', type=int, default=1, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
@@ -49,7 +49,7 @@ def main(opt):
     print("Loading model...")
 
     datasets = opt.datasets
-    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "test")
+    image_list, mask_list, _ = getDatasets(datasets, opt.data_dir, "test", 0)
     print("Number of images: ", len(image_list))
 
     model_dir = './U2_Net/saved_models/u2net/u2net_bce_best_' + datasets + '.pth'

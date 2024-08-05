@@ -1,0 +1,78 @@
+#########Thyroid-tn3k  fold0
+u2net
+recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
+
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8724, specificity: 0.9879, precision: 0.8490, F1_score:0.8359, acc: 0.9754, iou: 0.7467, mae: 0.0247, dice: 0.8359, hd: 13.3741, auc: 0.9301
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8498, specificity: 0.9874, precision: 0.8532, F1_score:0.8286, acc: 0.9741, iou: 0.7369, mae: 0.0259, dice: 0.8286, hd: 13.7511, auc: 0.9186
+
+#########Thyroid-tn3k  fold1
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.9020, specificity: 0.9804, precision: 0.7840, F1_score:0.8141, acc: 0.9725, iou: 0.7163, mae: 0.0275, dice: 0.8141, hd: 15.8294, auc: 0.9412
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.9029, specificity: 0.9823, precision: 0.7750, F1_score:0.8109, acc: 0.9755, iou: 0.7127, mae: 0.0246, dice: 0.8109, hd: 15.2690, auc: 0.9426
+
+#########Thyroid-tn3k  fold2
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8994, specificity: 0.9830, precision: 0.7897, F1_score:0.8137, acc: 0.9737, iou: 0.7201, mae: 0.0264, dice: 0.8137, hd: 15.0636, auc: 0.9412
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8720, specificity: 0.9879, precision: 0.8156, F1_score:0.8182, acc: 0.9764, iou: 0.7246, mae: 0.0237, dice: 0.8182, hd: 14.6074, auc: 0.9299
+
+#########Thyroid-tn3k  fold3
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8897, specificity: 0.9840, precision: 0.8037, F1_score:0.8216, acc: 0.9753, iou: 0.7273, mae: 0.0248, dice: 0.8216, hd: 14.1118, auc: 0.9369
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8796, specificity: 0.9834, precision: 0.8069, F1_score:0.8189, acc: 0.9734, iou: 0.7240, mae: 0.0266, dice: 0.8189, hd: 14.7457, auc: 0.9315
+
+#########Thyroid-tn3k  fold4
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8806, specificity: 0.9855, precision: 0.8167, F1_score:0.8220, acc: 0.9745, iou: 0.7277, mae: 0.0256, dice: 0.8220, hd: 14.9801, auc: 0.9330
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8756, specificity: 0.9860, precision: 0.8114, F1_score:0.8183, acc: 0.9752, iou: 0.7231, mae: 0.0249, dice: 0.8183, hd: 13.4722, auc: 0.9308
+
+#########Thyroid-ddti fold0
+U2net
+recall: 0.5455, specificity: 0.8871, precision: 0.7391, F1_score:0.4997, acc: 0.7988, iou: 0.4053, mae: 0.2036, dice: 0.4997, hd: 99.3068, auc: 0.7163
+
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8067, specificity: 0.9073, precision: 0.7802, F1_score:0.7532, acc: 0.8717, iou: 0.6297, mae: 0.1283, dice: 0.7532, hd: 29.7589, auc: 0.8570
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8127, specificity: 0.9115, precision: 0.7888, F1_score:0.7631, acc: 0.8801, iou: 0.6476, mae: 0.1200, dice: 0.7631, hd: 26.6951, auc: 0.8621
+
+#########Thyroid-ddti fold1
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8067, specificity: 0.9073, precision: 0.7802, F1_score:0.7532, acc: 0.8717, iou: 0.6297, mae: 0.1283, dice: 0.7532, hd: 29.7589, auc: 0.8570
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8453, specificity: 0.8695, precision: 0.7352, F1_score:0.7427, acc: 0.8576, iou: 0.6225, mae: 0.1426, dice: 0.7427, hd: 30.2271, auc: 0.8574
+
+#########Thyroid-ddti fold2
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8067, specificity: 0.9073, precision: 0.7802, F1_score:0.7532, acc: 0.8717, iou: 0.6297, mae: 0.1283, dice: 0.7532, hd: 29.7589, auc: 0.8570
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8882, specificity: 0.8476, precision: 0.7114, F1_score:0.7493, acc: 0.8500, iou: 0.6286, mae: 0.1503, dice: 0.7493, hd: 28.8637, auc: 0.8679
+
+#########Thyroid-ddti fold3
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8067, specificity: 0.9073, precision: 0.7802, F1_score:0.7532, acc: 0.8717, iou: 0.6297, mae: 0.1283, dice: 0.7532, hd: 29.7589, auc: 0.8570
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.7739, specificity: 0.9023, precision: 0.7660, F1_score:0.7222, acc: 0.8630, iou: 0.6052, mae: 0.1370, dice: 0.7222, hd: 30.3941, auc: 0.8381
+
+#########Thyroid-ddti fold4
+
+sam box+mask+ratio=1.02 + trfeplus
+recall: 0.8067, specificity: 0.9073, precision: 0.7802, F1_score:0.7532, acc: 0.8717, iou: 0.6297, mae: 0.1283, dice: 0.7532, hd: 29.7589, auc: 0.8570
+
+sam box+mask+ratio=1.02 + cpfnet
+recall: 0.8523, specificity: 0.8940, precision: 0.7721, F1_score:0.7739, acc: 0.8763, iou: 0.6574, mae: 0.1238, dice: 0.7739, hd: 25.9007, auc: 0.8732
+
+

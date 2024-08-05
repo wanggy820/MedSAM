@@ -26,7 +26,7 @@ def get_argparser():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
-    parser.add_argument('-fold', type=int, default=0)
+    parser.add_argument('-fold', type=int, default=4)
     return parser
 
 
@@ -34,11 +34,7 @@ def main():
     opt = get_argparser().parse_args()
 
     save_models_path = opt.save_models_path
-
-    dataset_name = opt.dataset_name
-    if "Thyroid" in opt.dataset_name:
-        dataset_name = f"Thyroid_fold{opt.fold}"
-    dataset_model = f"{save_models_path}/{dataset_name}"
+    dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
     prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
     logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
@@ -142,18 +138,17 @@ def main():
                                                 (h.item(), w.item()))
                 predict = predict.squeeze()
                 predict_np = predict.cpu().data.numpy()
-                im = Image.fromarray(predict_np)
+                im = Image.fromarray(predict_np).convert('L')
                 imo = im.resize((w.item(), h.item()), resample=Image.BILINEAR)
 
-                gray_image_cv = cv2.cvtColor(np.array(imo), cv2.COLOR_RGB2BGR)
-                smooth = cv2.medianBlur(gray_image_cv, 5)
-                smooth1 = (smooth > 127)*255
-                imo = Image.fromarray(np.uint8(smooth1)).convert('L')
+                # gray_image_cv = cv2.cvtColor(np.array(imo), cv2.COLOR_RGB2BGR)
+                # smooth = cv2.medianBlur(gray_image_cv, 5)
+                # smooth1 = (smooth > 127)*255
+                # imo = Image.fromarray(np.uint8(smooth1)).convert('L')
 
                 imo.save(save_image_name)
 
         metrics_result = metrics.mean(len(dataloader))
-        print("Test Result:")
         print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
             % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
                metrics_result['F1_score'],

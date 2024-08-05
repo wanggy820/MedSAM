@@ -50,20 +50,20 @@ def get_arguments():
     ## Model settings
     # unet, trfe, trfe1, trfe2, mtnet, segnet, deeplab-resnet50, fcn
     # TransUnet: ViT-B_16, ViT-B_32, ViT-L_16, ViT-L_32, ViT-H_14, R50-ViT-B_16, R50-ViT-L_16
-    parser.add_argument('-model_name', type=str, default='trfeplus')
+    parser.add_argument('-model_name', type=str, default='cpfnet')
     parser.add_argument('-criterion', type=str, default='Dice')
     parser.add_argument('-pretrain', type=str, default='None')  # THYROID
 
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
-    parser.add_argument('-output_stride', type=int, default=16)
+    parser.add_argument('-output_stride', type=int, default=36)
     ## for transunet
     parser.add_argument('--n_skip', type=int, default=3, help='using number of skip-connect, default is 3')
     parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TATN')  # TN3K, TG3K, TATN
-    parser.add_argument('-fold', type=str, default='0')
+    parser.add_argument('-dataset', type=str, default='TN3K')  # TN3K, TG3K, TATN
+    parser.add_argument('-fold', type=str, default=4)
     parser.add_argument('-batch_size', type=int, default=16)
     parser.add_argument('-nepochs', type=int, default=100)
     parser.add_argument('-resume_epoch', type=int, default=0)

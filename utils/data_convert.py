@@ -15,6 +15,8 @@ from skimage import io
 from PIL import Image
 from MedSAM_box import MedSAMBox
 from torchvision import transforms
+
+from TRFE_Net.model.utils import soft_dice
 from segment_anything_u2net.MedSAM_u2net import MedSAM_U2net
 
 
@@ -51,7 +53,7 @@ def dice_function(pred, target, smooth=1.0):
 seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mean")
 ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
 
-
+loss = nn.SmoothL1Loss()
 def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
     # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
     # fl = focal_loss(pred_mask, true_mask)
@@ -59,8 +61,8 @@ def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
     # mask_loss = 20 * fl + dl
     # iou_loss = F.mse_loss(pred_iou, true_iou)
     # total_loss = mask_loss + iou_loss
-
-    total_loss = seg_loss(pred_mask, true_mask) + ce_loss(
+    # soft_dice
+    total_loss = soft_dice(
         pred_mask, true_mask.float()
     )
 
@@ -190,7 +192,8 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
         if data_type == "test":
             image_list = sorted(glob.glob(data_dir + "test-image/*"))
             mask_list = sorted(glob.glob(data_dir + "test-mask/*"))
-            auxiliary_list = sorted(glob.glob(f"{data_dir}fold{fold}/*"))
+            dir = "./TRFE_Net/results/test-TN3K/cpfnet/"
+            auxiliary_list = sorted(glob.glob(f"{dir}fold{fold}/*"))
             return image_list, mask_list, auxiliary_list
 
         with open(f"{data_dir}tn3k-trainval-fold{fold}.json", 'r', encoding='utf-8') as fp:
@@ -211,7 +214,8 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
             data_dir = root_dir + "DDTI/2_preprocessed_data/stage2/"
             image_list = sorted(glob.glob(data_dir + "p_image/*"))
             mask_list = sorted(glob.glob(data_dir + "p_mask/*"))
-            auxiliary_list = sorted(glob.glob(f"{data_dir}fold{fold}/*"))
+            dir = "./TRFE_Net/results/test-DDTI/cpfnet/"
+            auxiliary_list = sorted(glob.glob(f"{dir}fold{fold}/*"))
             return image_list, mask_list, auxiliary_list
 
         return getDatasets("Thyroid_tn3k", root_dir, data_type, fold)

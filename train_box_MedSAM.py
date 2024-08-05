@@ -26,11 +26,11 @@ gamma = 0.1
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
+    parser.add_argument('--dataset_name', type=str, default='Thyroid_ddti', help='dataset name')
     parser.add_argument('--batch_size', type=int, default=4, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
-    parser.add_argument('--epochs', type=int, default=50, help='train epcoh')
+    parser.add_argument('--epochs', type=int, default=3, help='train epcoh')
     parser.add_argument('--lr', type=float, default=1e-5, help='learning_rate')
     parser.add_argument('--weight_decay', type=float, default=0.1, help='weight_decay')
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
@@ -39,7 +39,7 @@ def parse_opt():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
-    parser.add_argument('-fold', type=int, default=0)
+    parser.add_argument('-fold', type=int, default=4)
     return parser.parse_known_args()[0]
 
 def main(opt):
@@ -59,10 +59,7 @@ def main(opt):
     save_models_path = opt.save_models_path
     if not os.path.exists(save_models_path):
         os.makedirs(save_models_path)
-    dataset_name = opt.dataset_name
-    if "Thyroid" in opt.dataset_name:
-        dataset_name = f"Thyroid_fold{opt.fold}"
-    dataset_model = f"{save_models_path}/{dataset_name}"
+    dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
     if not os.path.exists(dataset_model):
         os.makedirs(dataset_model)
     prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
@@ -79,13 +76,6 @@ def main(opt):
 
     current_checkpoint = f"{prefix}/sam_current.pth"
     best_checkpoint = f"{prefix}/sam_best.pth"
-    state_dict = {"tr_pl_loss_list": [],
-                  "tr_pl_miou_list": [],
-                  "tr_pl_dice_list": [],
-                  "val_pl_loss_list": [],
-                  "val_pl_miou_list": [],
-                  "val_pl_dice_list": [],
-                  "start": 0}
 
     tr_pl_loss_list = []
     tr_pl_miou_list = []
@@ -337,4 +327,6 @@ def main(opt):
 
 if __name__ == '__main__':
     opt = parse_opt()
-    main(opt)
+    for i in range(1, 5):
+        opt.fold = i
+        main(opt)

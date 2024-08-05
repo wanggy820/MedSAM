@@ -68,9 +68,24 @@ interaction mean iou:0.761850,interaction mean dice:0.822677
 ratio=1.00
 interaction mean iou:0.766819,interaction mean dice:0.824059
 
+
+###########MICCAI
+ratio=1.1 vit_h box, mask
+interaction mean iou:0.785321,interaction mean dice:0.879006
+
+deepv3+ mean iou:0.844449, mean dice:0.915332
+
+
+
+
 #########Thyroid-tn3k
+fold0
 U2net mean iou:0.659591, mean dice:0.760811
 recall: 0.7820, specificity: 0.9766, precision: 0.8397, F1_score:0.7688, acc: 0.9539, iou: 0.6715, mae: 0.0472, dice: 0.7688, hd: 29.5704, auc: 0.8793
+trfeplus mean iou: 0.6880, mae: 0.0319, dice: 0.7870
+recall: 0.8719, specificity: 0.9838, precision: 0.8121, F1_score:0.8147, acc: 0.9713, iou: 0.7163, mae: 0.0287, dice: 0.8147, hd: 12.2701, auc: 0.9278
+
+
 sam box+mask+ratio=1.00 + trfeplus
 interaction mean iou:0.749487,interaction mean dice:0.837489
 recall: 0.8868, specificity: 0.9865, precision: 0.8388, F1_score:0.8375, acc: 0.9755, iou: 0.7495, mae: 0.0246, dice: 0.8375, hd: 13.3582, auc: 0.9366
@@ -82,22 +97,8 @@ sam box+mask+ratio=1.02 + cpfnet
 interaction mean iou:0.736483,interaction mean dice:0.828225
 recall: 0.8495, specificity: 0.9874, precision: 0.8525, F1_score:0.8282, acc: 0.9741, iou: 0.7365, mae: 0.0260, dice: 0.8282, hd: 13.7537, auc: 0.9184
 
-###########MICCAI
-ratio=1.1 vit_h box, mask
-interaction mean iou:0.785321,interaction mean dice:0.879006
 
-deepv3+ mean iou:0.844449, mean dice:0.915332
-
-
-
-
-
-
-
-
-论文 实现 thyroid  iou: 0.6880, mae: 0.0319, dice: 0.7870
-
-recall: 0.8719, specificity: 0.9838, precision: 0.8121, F1_score:0.8147, acc: 0.9713, iou: 0.7163, mae: 0.0287, dice: 0.8147, hd: 12.2701, auc: 0.9278
+#########Thyroid-ddti
 
 
 
