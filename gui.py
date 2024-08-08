@@ -578,26 +578,6 @@ https://pdf.sciencedirectassets.com/271150/1-s2.0-S0010482523X0002X/1-s2.0-S0010
 • DICE (dice coefficient) = 2*TP/(FP + FN + 2 * TP);
 
 
-
-1.****消除 sam predict 毛刺 ****
-
-
-训练
-2. MULTI-TASK LEARNING FOR THYROID NODULE SEGMENTATION WITH THYROID REGION PRIOR  对比
-
-
-u2net  找一个更好的网络
-
-
-3.
-ratio=1.0
-
-4.不加prompt
-
-
-
-
-
 ***** medsam 评价标准
 
 
@@ -644,6 +624,18 @@ gpt
 
 
 
+
+sam 
+ma-sam  adapter
+AutoSAM
+DeSAM 解耦分割模型(Decoupling Segment Anything Model, DeSAM)
+SurgicalSAM
+
+UR-SAM
+SemiSAM
+
+
+多头注意力使用
 '''
 
 

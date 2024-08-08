@@ -26,7 +26,7 @@ def get_argparser():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
-    parser.add_argument('-fold', type=int, default=4)
+    parser.add_argument('--fold', type=int, default=4)
     return parser
 
 
