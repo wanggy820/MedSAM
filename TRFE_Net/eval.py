@@ -197,11 +197,10 @@ def main(args):
     # keys_txt = ''
     metrics_result['inference_time'] = total_cost_time / len(testloader)
     values_txt = str(args.fold) + '\t'
-    keys_txt = str(args.fold) + '\t'
     for k, v in metrics_result.items():
         if k != 'mae' or k != 'hd':
             v = 100 * v
-        keys_txt += k + '\t'
+        # keys_txt += k + '\t'
         values_txt += '%.2f' % v + '\t'
     text = values_txt + '\n'
     save_path = evaluation_dir + args.model_name + '.txt'

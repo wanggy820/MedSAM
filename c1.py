@@ -15,9 +15,11 @@ import os
 from PIL import Image
 from  skimage import filters
 join = os.path.join
-image = Image.open("/Users/wang/Downloads/0002.jpg")
+image = Image.open("./pres.png")
 gray_image = image.convert("L")
-gray_image_cv = cv2.cvtColor(numpy.array(gray_image), cv2.COLOR_RGB2BGR)
+a = numpy.array(gray_image)
+b = (a > 1).sum()
+gray_image_cv = cv2.cvtColor(a, cv2.COLOR_RGB2BGR)
 # edges = cv2.Canny(gray_image_cv, 100, 200)
 # smooth = filters.median(gray_image_cv)
 smooth = cv2.medianBlur(gray_image_cv, 5)
