@@ -122,7 +122,14 @@ class MedSAMBox(Dataset):
 
         auxiliary_ratio_masks += auxiliary_256
         auxiliary_ratio_masks = auxiliary_ratio_masks // 2 + auxiliary_ratio_masks % 2
-        prompt_masks = torch.where(auxiliary_ratio_masks > 0, 1.0, 0.0).unsqueeze(0)
+        prompt_masks1 = torch.where(auxiliary_ratio_masks > 0, 255.0, 0.0)
+        np_p = prompt_masks1.numpy()
+        gray_image_cv = cv2.cvtColor(np_p, cv2.COLOR_RGB2BGR)
+        smooth = cv2.medianBlur(gray_image_cv, 5)
+
+        imo = Image.fromarray(np.uint8(smooth)).convert('L')
+        auxiliary_ratio_masks1 = np.array(imo)
+        prompt_masks = torch.from_numpy(auxiliary_ratio_masks1).unsqueeze(0).to(torch.float32)
         # prompt_masks = (auxiliary_ratio_masks * 255).to(torch.float32).unsqueeze(0)
         #####################################
         h, w = mask_np.shape[-2:]

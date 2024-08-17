@@ -636,6 +636,17 @@ SemiSAM
 
 
 多头注意力使用
+
+
+
+
+USFM: A universal ultrasound foundation model generalized to tasks and organs towards label efficient image analysis
+
+tn3k  ddti 谷歌学术
+
+总结不同论文
+
+gonghaifan@foxmail.com
 '''
 
 
