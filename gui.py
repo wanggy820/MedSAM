@@ -627,7 +627,7 @@ gpt
 
 sam 
 ma-sam  adapter
-AutoSAM
+AutoSAM    https://arxiv.org/pdf/2308.14936
 DeSAM 解耦分割模型(Decoupling Segment Anything Model, DeSAM)
 SurgicalSAM
 
