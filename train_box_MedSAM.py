@@ -246,6 +246,8 @@ def main(opt):
                 pbar_desc += f", total dice: {np.mean(val_dice_list):.5f}"
                 iterations.set_description(pbar_desc)
 
+
+
             val_loss = np.mean(val_loss_list)
             val_miou = np.mean(val_miou_list)
             val_dice = np.mean(val_dice_list)
