@@ -192,7 +192,7 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
         if data_type == "test":
             image_list = sorted(glob.glob(data_dir + "test-image/*"))
             mask_list = sorted(glob.glob(data_dir + "test-mask/*"))
-            dir = "./TRFE_Net/results/test-TN3K/cpfnet/"
+            dir = "./BPAT_UNet/"
             auxiliary_list = sorted(glob.glob(f"{dir}fold{fold}/*"))
             return image_list, mask_list, auxiliary_list
 
