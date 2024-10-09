@@ -647,6 +647,10 @@ tn3k  ddti 谷歌学术
 总结不同论文
 
 gonghaifan@foxmail.com
+
+# ratio  一个模型训练出来(GridSearch)    cnn_feature 更换成BPAT-unet   ,去掉adapter
+
+image_encoder 并行 测试
 '''
 
 

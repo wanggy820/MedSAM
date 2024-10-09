@@ -17,7 +17,7 @@ from torch import optim
 from segment_anything import sam_model_registry
 import torch.nn.functional as F
 from TRFE_Net.visualization.metrics import Metrics, evaluate
-
+from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
 # 设置了一些配置参数
 beta = (0.9, 0.999)
 milestone = [60000, 86666]
@@ -39,6 +39,7 @@ def parse_opt():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
     parser.add_argument('--ratio', type=float, default=1.00, help='ratio')
+    parser.add_argument('--cnn_ratio', type=float, default=0.5, help='cnn_ratio')
     parser.add_argument('-fold', type=int, default=0)
     return parser.parse_known_args()[0]
 
@@ -73,9 +74,14 @@ def main(opt):
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
     sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
+    net = BPATUNet(n_classes=1)
 
     current_checkpoint = f"{prefix}/sam_current.pth"
     best_checkpoint = f"{prefix}/sam_best.pth"
+    bpat_unet_checkpoint  = "./BPA_UNet/BPAT-UNet_best.pth"
+    sta = torch.load(bpat_unet_checkpoint)
+    net.load_state_dict(torch.load(sta))
+    net = net.to(device)
 
     tr_pl_loss_list = []
     tr_pl_miou_list = []
@@ -101,7 +107,17 @@ def main(opt):
         start = state_dict["start"]
     sam = sam.to(device=device)
 
-    optimizer = optim.AdamW(sam.mask_decoder.parameters(), lr=lr, betas=beta, weight_decay=opt.weight_decay)
+
+    cnn_ratio = opt.cnn_ratio
+
+    for k, v in sam.prompt_encoder.named_parameters():
+        v.requires_grad = False
+
+    img_mask_encdec_params = list(sam.image_encoder.parameters()) + list(
+        sam.mask_decoder.parameters()
+    ) + list(net.parameters())
+
+    optimizer = optim.AdamW(img_mask_encdec_params, lr=lr, betas=beta, weight_decay=opt.weight_decay)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
 
     print('Training Start')
@@ -120,15 +136,16 @@ def main(opt):
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
+            image_256 = train_data['image_256'].to(device)
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
+            train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
-                train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
                 if opt.prompt_type == 1:
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
                                                                                          masks=None)
@@ -142,6 +159,7 @@ def main(opt):
                     train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
                                                                                          masks=None)
 
+            cnn_pred, _ = net(image_256)
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
                 image_embeddings=train_encode_feature,
@@ -149,6 +167,7 @@ def main(opt):
                 sparse_prompt_embeddings=train_sparse_embeddings,
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
+            train_mask = cnn_ratio * train_mask + (1 - cnn_ratio) *cnn_pred
             low_res_pred = torch.sigmoid(train_mask)
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
@@ -200,6 +219,7 @@ def main(opt):
             for val_data in iterations:
                 # 将训练数据移到指定设备，这里是GPU
                 val_input = val_data['image'].to(device)
+                image_256 = val_data['image_256'].to(device)
                 val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
                 prompt_box = val_data["prompt_box"].to(device)
                 prompt_masks = val_data["prompt_masks"].to(device)
@@ -220,6 +240,8 @@ def main(opt):
                 else:
                     val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
                                                                                          masks=None)
+
+                cnn_pred, _ = net(image_256)
                 #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
                 val_mask, val_IOU = sam.mask_decoder(
                     image_embeddings=val_encode_feature,
@@ -227,6 +249,7 @@ def main(opt):
                     sparse_prompt_embeddings=val_sparse_embeddings,
                     dense_prompt_embeddings=val_dense_embeddings,
                     multimask_output=False)
+                val_mask = cnn_ratio * val_mask + (1 - cnn_ratio) * cnn_pred
                 low_res_pred = torch.sigmoid(val_mask)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。

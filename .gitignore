@@ -185,3 +185,4 @@ segment_anything_u2net/val/*
 save_models/*
 TRFE_Net/run/*
 TRFE_Net/results/*
+BPAT_UNet/results/*

@@ -81,6 +81,8 @@ class MedSAMBox(Dataset):
         img = img.permute(2, 0, 1).contiguous()[None, :, :, :].squeeze(0)  # (高, 宽, 通道) -> (通道, 高, 宽) 变更后 设置添加None
 
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
+        image_256 = F.interpolate(img.unsqueeze(0), size=(self.output_size, self.output_size), mode='bilinear', align_corners=False)
+        image_256 = image_256.squeeze(0)
         #####################################
 
         mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)
@@ -136,6 +138,7 @@ class MedSAMBox(Dataset):
         size = np.array([w, h])
         data = {
             'image': img,
+            'image_256': image_256,
             'mask': mask_256,
             "prompt_box": box_1024,
             "prompt_masks": prompt_masks,

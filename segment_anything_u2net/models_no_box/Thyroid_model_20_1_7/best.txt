@@ -1,6 +1,0 @@
-Experimental Day: 2024-06-30 03:08:58.957213
-mIoU: 0.9784897147907061
-epochs:20
-batch_size:1
-learning_rate:1e-05
-Data_set : Thyroid
