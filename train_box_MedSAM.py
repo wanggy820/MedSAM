@@ -17,7 +17,7 @@ from torch import optim
 from segment_anything import sam_model_registry
 import torch.nn.functional as F
 from TRFE_Net.visualization.metrics import Metrics, evaluate
-from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
+
 # 设置了一些配置参数
 beta = (0.9, 0.999)
 milestone = [60000, 86666]
@@ -36,10 +36,8 @@ def parse_opt():
     parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
-    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
-    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
+    parser.add_argument('--vit_type', type=str, default='vit_b', help='sam vit type')
     parser.add_argument('--ratio', type=float, default=1.00, help='ratio')
-    parser.add_argument('--cnn_ratio', type=float, default=0.5, help='cnn_ratio')
     parser.add_argument('-fold', type=int, default=0)
     return parser.parse_known_args()[0]
 
@@ -63,7 +61,7 @@ def main(opt):
     dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
     if not os.path.exists(dataset_model):
         os.makedirs(dataset_model)
-    prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}"
     if not os.path.exists(prefix):
         os.makedirs(prefix)
 
@@ -74,14 +72,9 @@ def main(opt):
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
     sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
-    net = BPATUNet(n_classes=1)
 
     current_checkpoint = f"{prefix}/sam_current.pth"
     best_checkpoint = f"{prefix}/sam_best.pth"
-    bpat_unet_checkpoint  = "./BPA_UNet/BPAT-UNet_best.pth"
-    sta = torch.load(bpat_unet_checkpoint)
-    net.load_state_dict(torch.load(sta))
-    net = net.to(device)
 
     tr_pl_loss_list = []
     tr_pl_miou_list = []
@@ -107,15 +100,12 @@ def main(opt):
         start = state_dict["start"]
     sam = sam.to(device=device)
 
-
-    cnn_ratio = opt.cnn_ratio
-
     for k, v in sam.prompt_encoder.named_parameters():
         v.requires_grad = False
 
     img_mask_encdec_params = list(sam.image_encoder.parameters()) + list(
         sam.mask_decoder.parameters()
-    ) + list(net.parameters())
+    )
 
     optimizer = optim.AdamW(img_mask_encdec_params, lr=lr, betas=beta, weight_decay=opt.weight_decay)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestone, gamma=gamma)
@@ -146,20 +136,8 @@ def main(opt):
             train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
-                if opt.prompt_type == 1:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                         masks=None)
-                elif opt.prompt_type == 2:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                         masks=prompt_masks)
-                elif opt.prompt_type == 3:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
-                                                                                         masks=prompt_masks)
-                else:
-                    train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                         masks=None)
-
-            cnn_pred, _ = net(image_256)
+                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                                                                                     masks=prompt_masks)
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
                 image_embeddings=train_encode_feature,
@@ -167,7 +145,6 @@ def main(opt):
                 sparse_prompt_embeddings=train_sparse_embeddings,
                 dense_prompt_embeddings=train_dense_embeddings,
                 multimask_output=False)
-            train_mask = cnn_ratio * train_mask + (1 - cnn_ratio) *cnn_pred
             low_res_pred = torch.sigmoid(train_mask)
 
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
@@ -226,22 +203,10 @@ def main(opt):
 
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 val_encode_feature = sam.image_encoder(val_input)  # (3, 256, 64, 64)
-                if opt.prompt_type == 1:
-                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
-                                                                                         boxes=prompt_box,
-                                                                                         masks=None)
-                elif opt.prompt_type == 2:
-                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                         masks=prompt_masks)
-                elif opt.prompt_type == 3:
-                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
-                                                                                         boxes=prompt_box,
-                                                                                         masks=prompt_masks)
-                else:
-                    val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                         masks=None)
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                                                                                 boxes=prompt_box,
+                                                                                 masks=prompt_masks)
 
-                cnn_pred, _ = net(image_256)
                 #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
                 val_mask, val_IOU = sam.mask_decoder(
                     image_embeddings=val_encode_feature,
@@ -249,7 +214,6 @@ def main(opt):
                     sparse_prompt_embeddings=val_sparse_embeddings,
                     dense_prompt_embeddings=val_dense_embeddings,
                     multimask_output=False)
-                val_mask = cnn_ratio * val_mask + (1 - cnn_ratio) * cnn_pred
                 low_res_pred = torch.sigmoid(val_mask)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
@@ -298,8 +262,6 @@ def main(opt):
                 f.write(f"learning_rate:{opt.lr}")
                 f.write("\n")
                 f.write(f"vit_type:{opt.vit_type}")
-                f.write("\n")
-                f.write(f"prompt_type:{opt.prompt_type}")
                 f.write("\n")
                 f.write(f"ratio:{opt.ratio}")
                 f.write("\n")
@@ -352,6 +314,4 @@ def main(opt):
 
 if __name__ == '__main__':
     opt = parse_opt()
-    for i in range(1, 5):
-        opt.fold = i
-        main(opt)
+    main(opt)

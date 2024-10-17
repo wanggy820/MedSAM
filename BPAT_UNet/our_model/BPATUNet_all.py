@@ -5,13 +5,13 @@ from torch.nn.functional import dropout, gelu
 import numpy as np
 import argparse
 import math
-from our_model.unet_parts import *
+from BPAT_UNet.our_model.unet_parts import *
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from our_model.unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
+from BPAT_UNet.our_model.unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
 
-from our_model.deform_attention_2 import DeformableAttention2D
-from our_model.deform_conv import DeformConv2d
-from torch_softpool import SoftPool2d
+from BPAT_UNet.our_model.deform_attention_2 import DeformableAttention2D
+from BPAT_UNet.our_model.deform_conv import DeformConv2d
+from BPAT_UNet.torch_softpool import SoftPool2d
 
 
 class PositionalEncoding2D(nn.Module):

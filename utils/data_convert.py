@@ -17,7 +17,7 @@ from MedSAM_box import MedSAMBox
 from torchvision import transforms
 
 from TRFE_Net.model.utils import soft_dice
-from segment_anything_u2net.MedSAM_u2net import MedSAM_U2net
+
 
 
 # 损失函数
@@ -249,22 +249,6 @@ def build_dataloader(sam, dataset_name, data_dir, batch_size, num_workers, ratio
             pin_memory=False
         )
     return dataloaders
-
-
-def build_dataloader_u2net(sam, dataset_name, data_dir, batch_size, num_workers):
-    dataloaders = {}
-    for key in ['train', 'val', 'test']:
-        image_list, mask_list = getDatasets(dataset_name, data_dir, key)
-        datasets = MedSAM_U2net(sam, image_list, mask_list, bbox_shift=20)
-        dataloaders[key] = DataLoader(
-            datasets,
-            batch_size=batch_size,
-            shuffle=False if key != 'train' else True,
-            num_workers=num_workers,
-            pin_memory=False
-        )
-    return dataloaders
-
 
 # 定义转换管道
 transform = transforms.Compose([
