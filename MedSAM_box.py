@@ -96,6 +96,8 @@ class MedSAMBox(Dataset):
         auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
         auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
 
+        pt, point = self.fixed_click(np.array(auxiliary_1024))
+
         y_indices, x_indices = np.where(auxiliary_1024 > 0)
         if len(y_indices) == 0 or len(x_indices) == 0:
             x_min = y_min = 0
@@ -144,6 +146,19 @@ class MedSAMBox(Dataset):
             "prompt_masks": prompt_masks,
             "image_path": image_path,
             "mask_path": mask_path,
-            "size": size
+            "size": size,
+            "pt": pt,
+            "point": np.array(point)
         }
         return data
+
+    def fixed_click(self, mask, class_id=1):
+        indices = np.argwhere(mask == class_id)
+        indices[:, [0, 1]] = indices[:, [1, 0]]
+        point_label = 1
+        if len(indices) == 0:
+            point_label = 0
+            indices = np.argwhere(mask != class_id)
+            indices[:, [0, 1]] = indices[:, [1, 0]]
+        pt = indices[len(indices) // 2]
+        return pt[np.newaxis, :], [point_label]

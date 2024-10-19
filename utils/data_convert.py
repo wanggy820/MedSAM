@@ -9,7 +9,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from MedSAM_Dataset import MedSAM_Dataset
 from torch.utils.data import DataLoader
 from skimage import io
 from PIL import Image

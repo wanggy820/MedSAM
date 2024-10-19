@@ -24,10 +24,20 @@ milestone = [60000, 86666]
 gamma = 0.1
 
 
+def get_click_prompt(data, device):
+    point_coords = data["pt"].to(device)
+    point_labels = data["point"]
+    coords_torch = torch.as_tensor(point_coords, dtype=torch.float32, device=device)
+    labels_torch = torch.as_tensor(point_labels, dtype=torch.int, device=device)
+    if len(point_coords.shape) == 2:
+        coords_torch, labels_torch = coords_torch[None, :, :], labels_torch[None, :]
+    pt = (coords_torch, labels_torch)
+    return pt
+
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=3, help='train epcoh')
@@ -126,17 +136,18 @@ def main(opt):
         for train_data in iterations:
             # 将训练数据移到指定设备，这里是GPU
             train_input = train_data['image'].to(device)
-            image_256 = train_data['image_256'].to(device)
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             prompt_box = train_data["prompt_box"].to(device)
             prompt_masks = train_data["prompt_masks"].to(device)
+
+            points = get_click_prompt(train_data, device)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
             train_encode_feature = sam.image_encoder(train_input)  # (3, 256, 64, 64)
             with torch.no_grad():
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
-                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=None, boxes=prompt_box,
+                train_sparse_embeddings, train_dense_embeddings = sam.prompt_encoder(points=points, boxes=prompt_box,
                                                                                      masks=prompt_masks)
             #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
             train_mask, train_IOU = sam.mask_decoder(
