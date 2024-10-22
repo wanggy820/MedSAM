@@ -212,9 +212,10 @@ def main(opt):
                 prompt_box = val_data["prompt_box"].to(device)
                 prompt_masks = val_data["prompt_masks"].to(device)
 
+                points = get_click_prompt(train_data, device)
                 # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
                 val_encode_feature = sam.image_encoder(val_input)  # (3, 256, 64, 64)
-                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
+                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=points,
                                                                                  boxes=prompt_box,
                                                                                  masks=prompt_masks)
 
