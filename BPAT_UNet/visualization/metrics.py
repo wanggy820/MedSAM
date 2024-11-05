@@ -6,7 +6,7 @@ from scipy.ndimage.morphology import distance_transform_edt as edt
 from scipy.spatial.distance import directed_hausdorff
 from scipy.ndimage import morphology
 from sklearn.metrics import roc_curve, auc
-from dataloaders.utils import get_dice
+from BPAT_UNet.dataloaders.utils import get_dice
 
 class HausdorffDistance:
     def hd_distance(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:

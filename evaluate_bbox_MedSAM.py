@@ -4,6 +4,9 @@ import cv2
 import torch
 import os
 from PIL import Image
+
+from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
+from MySAMModel import MySAMModel
 from segment_anything import sam_model_registry
 import logging
 from utils.data_convert import mean_iou, build_dataloader
@@ -24,9 +27,11 @@ def get_argparser():
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
-    parser.add_argument('--prompt_type', type=int, default=3, help='0: None,1: box,2: mask,3: box and mask')
-    parser.add_argument('--ratio', type=float, default=1.02, help='ratio')
+    parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     parser.add_argument('--fold', type=int, default=0)
+    # parser.add_argument('-auxiliar_model', type=str, default='BPATUNet')
+    parser.add_argument('-auxiliar_model', type=str, default='MySAMModel')
+    parser.add_argument('-auxiliar_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
     return parser
 
 
@@ -35,7 +40,7 @@ def main():
 
     save_models_path = opt.save_models_path
     dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
-    prefix = f"{dataset_model}/{opt.vit_type}_{opt.prompt_type}_{opt.ratio:.2f}"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}_heigh"
     logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
     if not os.path.exists(val_dataset):
@@ -46,7 +51,17 @@ def main():
     # set up model
     sam = sam_model_registry[opt.vit_type](checkpoint=best_checkpoint).to(device)
     sam.eval()
-    dataloaders = build_dataloader(sam, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
+    auxiliary_model = BPATUNet(n_classes=1)
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliar_model_path))
+    auxiliary_model.eval()
+    if opt.auxiliar_model == 'MySAMModel':
+        auxiliary_model = MySAMModel(sam, auxiliary_model)
+
+    auxiliary_model = auxiliary_model.to(device)
+    myModel = MySAMModel(sam, auxiliary_model)
+    myModel = myModel.to(device)
+    myModel.eval()
+    dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
     with torch.no_grad():
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
         # --------- 4. inference for each image ---------
@@ -59,37 +74,9 @@ def main():
             logging.info("image_path:{}".format(image_path))
             mask_path = data["mask_path"]
             # 将训练数据移到指定设备，这里是GPU
-            test_input = data['image'].to(device)
-            prompt_box = data["prompt_box"].to(device)
-            prompt_masks = data["prompt_masks"].to(device)
             mask = data['mask'].to(device, dtype=torch.float32)
             size = data["size"]
-            test_encode_feature = sam.image_encoder(test_input)
-
-            if opt.prompt_type == 1:
-                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
-                                                                                 boxes=prompt_box,
-                                                                                 masks=None)
-            elif opt.prompt_type == 2:
-                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                 masks=prompt_masks)
-            elif opt.prompt_type == 3:
-                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None,
-                                                                                 boxes=prompt_box,
-                                                                                 masks=prompt_masks)
-            else:
-                val_sparse_embeddings, val_dense_embeddings = sam.prompt_encoder(points=None, boxes=None,
-                                                                                 masks=None)
-
-            #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
-            test_mask, test_IOU = sam.mask_decoder(
-                image_embeddings=test_encode_feature,
-                image_pe=sam.prompt_encoder.get_dense_pe(),
-                sparse_prompt_embeddings=val_sparse_embeddings,
-                dense_prompt_embeddings=val_dense_embeddings,
-                multimask_output=False)
-
-            low_res_pred = torch.sigmoid(test_mask)
+            low_res_pred, val_IOU = myModel(data)
 
             _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, mask)
             metrics.update(recall=_recall, specificity=_specificity, precision=_precision,

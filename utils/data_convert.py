@@ -17,7 +17,15 @@ from torchvision import transforms
 
 from TRFE_Net.model.utils import soft_dice
 
-
+def get_click_prompt(data, device):
+    point_coords = data["pt"].to(device)
+    point_labels = data["point"]
+    coords_torch = torch.as_tensor(point_coords, dtype=torch.float32, device=device)
+    labels_torch = torch.as_tensor(point_labels, dtype=torch.int, device=device)
+    if len(point_coords.shape) == 2:
+        coords_torch, labels_torch = coords_torch[None, :, :], labels_torch[None, :]
+    pt = (coords_torch, labels_torch)
+    return pt
 
 # 损失函数
 def focal_loss(pred, target, gamma=2.0, alpha=0.25, reduction='mean'):
@@ -208,6 +216,26 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
                 auxiliary_list.append(auxiliary_path)
             return image_list, mask_list, auxiliary_list
 
+    if dataset_name == "Thyroid_tn3k1":
+        data_dir = root_dir + "Thyroid_Dataset/tn3k/"
+        if data_type == "test":
+            image_list = sorted(glob.glob(data_dir + "test-image/*"))
+            mask_list = sorted(glob.glob(data_dir + "test-mask/*"))
+            dir = "./BPAT_UNet/"
+            auxiliary_list = sorted(glob.glob(f"{dir}fold{fold}/*"))
+            return image_list, mask_list, auxiliary_list
+
+        with open(f"result.json", 'r', encoding='utf-8') as fp:
+            names = json.load(fp)
+            for name in names:
+                image_path = name['image_path']
+                mask_path = name['mask_path']
+                auxiliary_path = mask_path
+                image_list.append(image_path)
+                mask_list.append(mask_path)
+                auxiliary_list.append(auxiliary_path)
+            return image_list, mask_list, auxiliary_list
+
     if dataset_name == "Thyroid_ddti":
         if data_type == "test":
             data_dir = root_dir + "DDTI/2_preprocessed_data/stage2/"
@@ -235,11 +263,11 @@ def getDatasets(dataset_name, root_dir, data_type, fold):
 
 
 # 数据加载
-def build_dataloader(sam, dataset_name, data_dir, batch_size, num_workers, ratio, fold):
+def build_dataloader(sam, auxiliar_model, dataset_name, data_dir, batch_size, num_workers, ratio, fold):
     dataloaders = {}
     for key in ['train', 'val', 'test']:
         image_list, mask_list, auxiliary_list = getDatasets(dataset_name, data_dir, key, fold)
-        datasets = MedSAMBox(sam, image_list, mask_list, auxiliary_list, bbox_shift=20, ratio=ratio, data_type=key)
+        datasets = MedSAMBox(sam, auxiliar_model, image_list, mask_list, auxiliary_list, bbox_shift=20, ratio=ratio, data_type=key)
         dataloaders[key] = DataLoader(
             datasets,
             batch_size=batch_size if key == 'train' else 1,
