@@ -421,42 +421,6 @@ app.exec()
 
 
 '''
-# 3d标注工具使用  pair
-#
-# 标注成本，时间
-#
-# 经典 半监督，无监督的目标检测 论文， 标注时间 --> 摘要
-#
-# 论文中的数据集，训练后比对性能指标
-#
-# 加新的网络 u-net
-
-
-
- -------------医学3d交互式分割标注工具-------------
-
-Pair 动态目标分割智能标注功能——intelligent Moving Object Segmentation (iMOS)
-iMOS 教程:https://www.bilibili.com/video/BV1Gh4y1N7M2
-iMOS适用于 CT/MRI/内窥镜/手术机器人/超声/造影等模态
-
-ITK-SNAP 
-http://www.itksnap.org/pmwiki/pmwiki.php
-
-用于无缝3D导航的链接光标
-一次在三个正交平面上手动分割
-基于Qt的现代图形用户界面
-支持许多不同的3D图像格式，包括NIfTI和DICOM
-支持多个图像的并发，链接查看和分段
-支持彩色，多通道和时变图像
-3D切割平面工具，用于快速后处理分割结果
-丰富的教程和视频文档
-
-3D Slicer
-三维体数据一般为DICOM格式或者NIFIT格式
-
-
-
-
 
  -------------医学数据集-------------
 
@@ -509,56 +473,6 @@ https://www.codabench.org/competitions/1847/
 
 RadImageNet数据集
 https://github.com/BMEII-AI/RadImageNet
-'''
-
-
-
-'''
-
-真实 dice  批量输出
-
-u2-net  超参一样， 与交互式效果对比  
-
-多分类
-
-
-牙齿、皮肤癌分割任务效果  最新的论文摘要、结果
-Swin-UNetr  训练模型
-
-多数据集合并训练
-
-**  半监督 -->完全监督
-
-
-
-'''
-
-
-
-'''
-
-训练结果 ， 平均值 
-
-
-牙齿、皮肤癌分割任务效果  最新的论文摘要、结果， 发表的期刊，写成word文档
-Swin-UNetr  训练模型
-
-
-
-谷歌学术 搜索 引用论文
-
-
-
-
-
-引用数据集相关顶会、顶刊的最优结果
-
-Sam  u2net 结合的模型
-
-
-思路路线
-
-
 
 
 https://github.com/MedMNIST/MedMNIST  数据集
@@ -573,84 +487,42 @@ https://www.fc.up.pt/addi/ph2%20database.html  皮肤镜
 https://pdf.sciencedirectassets.com/271150/1-s2.0-S0010482523X0002X/1-s2.0-S0010482522010976/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEBQaCXVzLWVhc3QtMSJGMEQCIE%2FBvsY6JKmjvq4YyU4O6%2BO9kvD40APZl7PJTYHRwp8mAiAWp6oIoyQlDOVsc5HQj0wS21Ou9f6q%2BlhOXSOblw6UMSq8BQi9%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F8BEAUaDDA1OTAwMzU0Njg2NSIMGlsbYP4g5IAVLH8JKpAFIh%2FiSw3kdx1CZqwEYz2D0X%2FIudPNd2JgI%2FS15m9arUW5d9HS4GRRP1b175vccFJiyHfJ3k2HQ%2BmcCb4%2FxtgBo9p2zMnp89n8lQHDlMTB5ivWTN3QTYIg7DCRfvblOE%2FoMRw2MFc3z9llL0uKrG%2FWsB03VJtx%2Bj4NCAsBCpOP9S3Tl389AUUZC4KjuhzJ%2FYVjYlOnAuvVyTahaOBtZT5xeDQz01NFA6d6RYC2fssCTTkBIvAtfZwaLByhZwIIJyER3c4anh9AkDG3UWmcGB046uVQsk4k9zOgNndiyWuXnRPythHnDFxKyOdHfKg7s8m7Qw7%2B47a2R2X3p8BXHUQe5AgVFzM1iaJ9A1vR6UtVpPnrT6ZNOa9zNrw9UKnW2G51zFt4J6%2BeDyvLZlXCEunw9Oow37gfufCx%2FZytev5nivMwVqpnBU%2BwLJcXllMP%2B8LHPfMTL86QGHi9%2BP6p8qHfTS%2BC18hy76CynqOgYaYZIyneDkNwjBE%2BOh1BQJPqMwuNxZKs8h6NwtcrWIhebvoHNIaqL4WH5bltq02Rn%2FN7x800vx0bOXKAKlrSMulJiynq2fO4T5weTpyWFk9oVi6k6uXeFQ7s3fW8PId6HYz8KDFOZpuxZWrLwFF%2BgDjS6Sh%2BmDO4YRjoDuQ1QLam8mDtZDGviDD4hotIPKhBDwC0GmZKG2%2FoZkLcS%2B7bu684FWXMQ9yLW8FpEXxzTlQehx1pfW%2BT3A7RW%2BKiH8m%2BFJrJICfI2BWTZzmGZtsDJtXsV5fYlt6gczzL7I4a6uVlPPORXYWThFHlBceAVNnb8KfxTGDAdZTSheE%2FYx94MPE2OEUTy4G%2BDP70Kc7KcUyda9G3OqzwMPOjrrI3XEGL0yunwgkw6NbqswY6sgE3TdhICmXpfts%2BP3AE9Yvv5HewqenldftI8PTlUAq1iB%2Bwo5i2nXyHNknZvPHV8sLN2nQHixGwSSXIcAoIBbq%2FObfGt53g82jZzmA5fAaVWe6ZOqHx57%2Bwm8nLIIXVi667Rb8Fi%2BNoNadzQZLP45m83Vx6C02VgsNf%2BxfGDMWIMz5ddWnyZMffTwRDV3lKnEKSkkCCPhjHH%2Br2E7lce6KRS2Vfg2KB1adfSS7eWsD2H39s&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20240625T123908Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYRZ7VIZU5%2F20240625%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=18e7bc413b074c8c98fe3fea627715be4622b95cedee81c4e7747e0ff5fae34a&hash=160ddaa3e0d3b412bc9b3819a50a90ae8b2011e4ab0bcd67313de6eedd43fa53&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=S0010482522010976&tid=spdf-3886109e-3b90-4180-ad4a-a88de71656a7&sid=10d697f831b458469f7990274569184eabaegxrqa&type=client&tsoh=d3d3LnNjaWVuY2VkaXJlY3QuY29t&ua=150556575d555754015a&rr=899504c4fe9f6039&cc=sg
 确认结果 --->公式
 
-
-• IoU (Intersection Over Union) = TP/(FP + FN);  论文有问题、与代码不一样  代码：TP / (TP + FP + FN)
-• DICE (dice coefficient) = 2*TP/(FP + FN + 2 * TP);
-
-
-***** medsam 评价标准
+'''
+'''
+cnn  + transfomer     各自优势   
 
 
-mask 毛刺
-查看论文用的事原论文的结果还是自己训练的结果？？
+训练集 难度分类 10%
 
-gpt
-	1.	诚实报告你的发现：如果你在重复他人的实验时发现结果达不到他们声称的效果，你可以在论文中提到这一点。这种情况在学术界并不罕见，重要的是诚实和透明。
-	2.	提供自己的结果：如果你的论文需要与他人的工作进行对比，那么你应该使用自己训练的结果。这样可以确保你的对比是基于你自己严格控制的实验条件下的结果，而不是依赖于他人的报告。
-	3.	详细描述实验条件：在你的论文中，详细描述你是如何进行实验的，包括数据集、模型、超参数等。这样，其他研究人员可以理解你的工作，并且如果他们想重复你的实验，也有足够的信息。
-	4.	讨论差异：如果你的结果与他人的结果有显著差异，尝试分析和讨论可能的原因。这可能包括数据集的差异、实验条件的不同、模型实现的细微差别等。
-	5.	引用原始结果：虽然你可能没有得到与他人论文中相同的结果，但你仍然可以引用他们的结果作为背景信息。然后在你的论文中详细说明你的发现和结果。
-	最重要的是保持学术诚信和透明，提供足够的信息和分析，以便其他研究人员能够理解和评估你的工作。
+DINO  LLM  -->prompt
 
-豆包
-在这种情况下，您应该使用自己训练的结果进行对比。
-如果您发现他人论文的结果存在可疑之处，不能将其直接用于对比。因为使用不可靠或未经证实的数据可能会影响您论文的科学性和可信度。
-在您的论文中，可以客观地提及他人论文结果与您所观察到的不一致，但需要以严谨和负责的态度进行，避免无端指责或猜测。同时，重点阐述您自己的研究过程、方法和所得出的结果。
+都分开做实验
+ 
+ 
+ 
+ (Supervised Fine-Tuning,监督微调)
+大模型的SFT方式主要包括以下几种：
 
-文心一言
-在撰写论文时，确保研究的准确性和可信度是至关重要的。当你发现其他论文中的结果与描述不符，而你需要在你的研究中进行对比分析时，应该采取一种既科学又严谨的方法来处理这种情况。
-
-1. 核实他人论文的结果
-首先，确认你理解并正确引用了其他论文的结果。有时候，误解或误读可能是造成差异的原因。检查原文中的数据、图表和结论，确保你没有遗漏或错误地解释了任何信息。
-
-2. 分析差异的原因
-如果确认他人论文中的结果确实与描述不符，尝试分析这种差异的可能原因。这可能包括实验条件的不同、数据处理方法的差异、样本选择的偏差，或是论文中可能存在的错误等。
-
-3. 决定是否使用他人论文的结果
-如果差异显著且原因不明：谨慎考虑是否在你的论文中直接使用这些结果作为对比。可以提及这些差异，并指出由于这些不确定性，你选择了其他更可靠的数据源或方法进行比较。
-如果差异可以合理解释：你可以在你的论文中讨论这些差异，并解释为什么你认为这些差异是合理的，然后基于你的理解使用这些数据作为对比。
-4. 使用自己训练的结果
-使用自己训练的结果进行对比通常是更可靠和有力的方法，因为它基于你自己的实验条件和数据处理流程。这可以确保对比的公平性和一致性，减少外部因素对结果的影响。
-
-5. 透明度和公正性
-无论你选择使用哪种方法，都应该在论文中清楚地说明你的选择理由，并保持透明度和公正性。如果使用了他人论文的结果，务必准确引用并注明可能的差异和不确定性。如果使用了自己训练的结果，也要详细说明实验条件、数据处理方法和结果验证过程。
-
-结论
-在对比研究中，确保使用可靠和一致的数据是至关重要的。如果可能，使用自己训练的结果进行对比是更理想的选择，因为它提供了更高的可控性和一致性。然而，在必要时，也可以谨慎地使用他人论文的结果，但务必注意透明度和公正性，以及合理解释任何潜在的差异和不确定性
-
-更换loss重新训练
-
-训练CPFNet
+1、全参数微调（Full Parameter Fine Tuning）：涉及对模型的所有权重进行调整，以使其完全适应特定领域或任务。这种方法适用于拥有大量与任务高度相关的高质量训练数据的情况。
+2、部分参数微调（Sparse Fine Tuning / Selective Fine Tuning）：
+3、LoRA（Low-Rank Adaptation）：通过向模型权重矩阵添加低秩矩阵来进行微调，既允许模型学习新的任务特定模式，又能够保留大部分预训练知识。
+4、P-tuning v2：基于prompt tuning的方法，仅微调模型中与prompt相关的部分参数，而不是直接修改模型主体的权重。
+5、QLoRA：可能是指Quantized Low-Rank Adaptation或其他类似技术，它可能结合了低秩调整与量化技术，以实现高效且资源友好的微调。
+6、冻结（Freeze）监督微调：在这种微调方式中，部分或全部预训练模型的权重被冻结，仅对模型的部分层或新增的附加组件进行训练。这样可以防止预训练知识被过度覆盖，同时允许模型学习针对新任务的特定决策边界。
 
 
+RLHF Reinforcement Learning fromHuman Feedback，人类反馈强化学习）
+
+dino 模型，  模型参数微调，  RL强化学习
 
 
-sam 
-ma-sam  adapter
-AutoSAM    https://arxiv.org/pdf/2308.14936
-DeSAM 解耦分割模型(Decoupling Segment Anything Model, DeSAM)
-SurgicalSAM
+encoder + prompt (冻结)
 
-UR-SAM
-SemiSAM
+预测分支  ---iou_pred， 难样本
+
+难样本----引入元学习  ------
 
 
-多头注意力使用
-
-
-
-
-USFM: A universal ultrasound foundation model generalized to tasks and organs towards label efficient image analysis
-
-tn3k  ddti 谷歌学术
-
-总结不同论文
-
-gonghaifan@foxmail.com
-
-# ratio  一个模型训练出来(GridSearch)    cnn_feature 更换成BPAT-unet   ,去掉adapter
-
-image_encoder 并行 测试
 '''
 
 
