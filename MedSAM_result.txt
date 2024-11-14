@@ -106,3 +106,19 @@ recall: 0.8655, specificity: 0.9845, precision: 0.8696, F1_score:0.8431, acc: 0.
 ------heigh
 recall: 0.8665, specificity: 0.9844, precision: 0.8688, F1_score:0.8431, acc: 0.9725, iou: 0.7576, mae: 0.0276, dice: 0.8431, hd: 14.2978, auc: 0.9254
 
+
+
+不訓練
+recall: 0.6082, specificity: 0.9871, precision: 0.8028, F1_score:0.6481, acc: 0.9415, iou: 0.5138, mae: 0.0695, dice: 0.6481, hd: 20.4898, auc: 0.7977
+
+凍結prompt + encoder
+recall: 0.8894, specificity: 0.9761, precision: 0.8384, F1_score:0.8361, acc: 0.9658, iou: 0.7499, mae: 0.0343, dice: 0.8361, hd: 15.3362, auc: 0.9328
+
+沒有凍結prompt + decoder
+dice 84.3
+
+混合訓練
+Model val loss --- Total loss: 0.80992, total mIOU: 0.75735, total dice: 0.84302
+
+
+
