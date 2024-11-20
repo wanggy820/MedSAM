@@ -9,8 +9,8 @@ class MySAMModel(nn.Module):
         super().__init__()
         self.sam = sam
         self.auxiliary_model = auxiliary_model
-        for param in sam.image_encoder.parameters():
-            param.requires_grad = False
+        # for param in sam.image_encoder.parameters():
+        #     param.requires_grad = False
 
     def forward(self, data):
         image = data['image'].to(self.sam.device)
@@ -18,8 +18,8 @@ class MySAMModel(nn.Module):
         prompt_masks = data["prompt_masks"].to(self.sam.device)
         points = get_click_prompt(data, self.sam.device)
 
-        with torch.no_grad():
-            encode_feature = self.sam.image_encoder(image)  # (3, 256, 64, 64)
+        # with torch.no_grad():
+        encode_feature = self.sam.image_encoder(image)  # (3, 256, 64, 64)
             # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
         sparse_embeddings, dense_embeddings = self.sam.prompt_encoder(points=points, boxes=prompt_box, masks=prompt_masks)
         #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
