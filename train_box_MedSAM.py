@@ -54,6 +54,7 @@ def main(opt):
     if device == f'cuda:0':
         torch.cuda.manual_seed_all(234)
     #  脚本使用预先构建的架构（sam_model_registry['vit_b']）定义了一个神经网络模型，并设置了优化器（AdamW）和学习率调度。
+    print("当前可用的GPU数量: ", torch.cuda.device_count())
     print(device, 'is available')
     print("Loading model...")
     epoch_add = 0
