@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -117,7 +117,7 @@ def main(opt):
 
     print('Training Start')
     auxiliary_model = BPATUNet(n_classes=1)
-    auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path))
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path, map_location=torch.device('cpu')))
     auxiliary_model = auxiliary_model.to(device)
     auxiliary_model.eval()
     if opt.auxiliary_model == 'MySAMModel':
