@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -75,7 +75,7 @@ def main(opt):
         checkpoint = f'./work_dir/SAM/sam_vit_h_4b8939.pth'
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
-    sam = sam_model_registry["vit_my_sam"](checkpoint=checkpoint)
+    sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
 
     current_checkpoint = f"{prefix}/sam_current.pth"
     best_checkpoint = f"{prefix}/sam_best.pth"
@@ -183,33 +183,6 @@ def main(opt):
         tr_pl_miou_list.append(train_miou)
         tr_pl_dice_list.append(train_dice)
 
-        if best_mIOU < train_miou:
-            best_mIOU = train_miou
-            best_dice = train_dice
-            torch.save(sam.state_dict(), best_checkpoint)
-            f = open(os.path.join(prefix, 'best.txt'), 'w')
-            f.write(f"Experimental Day: {datetime.now()}")
-            f.write("\n")
-            f.write(f"mIoU: {str(best_mIOU)}")
-            f.write("\n")
-            f.write(f"dice: {str(best_dice)}")
-            f.write("\n")
-            f.write(f"epochs:{opt.epochs}")
-            f.write("\n")
-            f.write(f"batch_size:{opt.batch_size}")
-            f.write("\n")
-            f.write(f"learning_rate:{opt.lr}")
-            f.write("\n")
-            f.write(f"vit_type:{opt.vit_type}")
-            f.write("\n")
-            f.write(f"ratio:{opt.ratio}")
-            f.write("\n")
-            f.write(f"data_set : {opt.dataset_name}")
-            f.close()
-
-        print("train epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
-              .format(epoch + 1 + epoch_add, train_miou, train_dice, best_mIOU, best_dice))
-
         json_data = json.dumps(resultJson)
         with open("result.json", "w") as file:
             file.write(json_data)
@@ -257,6 +230,32 @@ def main(opt):
             val_pl_miou_list.append(val_miou)
             val_pl_dice_list.append(val_dice)
 
+            if best_mIOU < val_miou:
+                best_mIOU = val_miou
+                best_dice = val_dice
+                torch.save(sam.state_dict(), best_checkpoint)
+                f = open(os.path.join(prefix, 'best.txt'), 'w')
+                f.write(f"Experimental Day: {datetime.now()}")
+                f.write("\n")
+                f.write(f"mIoU: {str(best_mIOU)}")
+                f.write("\n")
+                f.write(f"dice: {str(best_dice)}")
+                f.write("\n")
+                f.write(f"epochs:{opt.epochs}")
+                f.write("\n")
+                f.write(f"batch_size:{opt.batch_size}")
+                f.write("\n")
+                f.write(f"learning_rate:{opt.lr}")
+                f.write("\n")
+                f.write(f"vit_type:{opt.vit_type}")
+                f.write("\n")
+                f.write(f"ratio:{opt.ratio}")
+                f.write("\n")
+                f.write(f"data_set : {opt.dataset_name}")
+                f.close()
+
+        print("val epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
+              .format(epoch + 1 + epoch_add, val_miou, val_dice, best_mIOU, best_dice))
 
         metrics_result = metrics.mean(len(dataloaders['test']))
         print(
