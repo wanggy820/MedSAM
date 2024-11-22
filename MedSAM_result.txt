@@ -120,5 +120,12 @@ dice 84.3
 混合訓練
 Model val loss --- Total loss: 0.80992, total mIOU: 0.75735, total dice: 0.84302
 
+沒有凍結prompt + decoder  + noise
+dice 84.31
+
+
+
+
+
 
 

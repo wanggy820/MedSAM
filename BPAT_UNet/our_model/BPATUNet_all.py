@@ -6,7 +6,7 @@ import numpy as np
 import argparse
 import math
 from BPAT_UNet.our_model.unet_parts import *
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_
 from BPAT_UNet.our_model.unet_parts_depthwise_separable import DoubleConvDS, UpDS, DownDS
 
 from BPAT_UNet.our_model.deform_attention_2 import DeformableAttention2D

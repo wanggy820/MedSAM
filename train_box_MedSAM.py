@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -89,23 +89,9 @@ def main(opt):
     best_mIOU = 0
     best_dice = 0
     start = 0
-    # if os.path.exists(current_checkpoint):
-    #     state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
-    #     sam.load_state_dict(state_dict["model"])
-    #     tr_pl_loss_list = state_dict["tr_pl_loss_list"]
-    #     tr_pl_miou_list = state_dict["tr_pl_miou_list"]
-    #     tr_pl_dice_list = state_dict["tr_pl_dice_list"]
-    #     val_pl_loss_list = state_dict["val_pl_loss_list"]
-    #     val_pl_miou_list = state_dict["val_pl_miou_list"]
-    #     val_pl_dice_list = state_dict["val_pl_dice_list"]
-    #
-    #     best_mIOU = max(val_pl_miou_list)
-    #     best_dice = max(val_pl_dice_list)
-    #     start = state_dict["start"]
+
     sam = sam.to(device=device)
 
-    # for k, v in sam.prompt_encoder.named_parameters():
-    #     v.requires_grad = False
 
     img_mask_encdec_params = list(sam.prompt_encoder.parameters()) + list(
         sam.mask_decoder.parameters()
@@ -123,6 +109,19 @@ def main(opt):
         auxiliary_model = MySAMModel(sam, auxiliary_model)
 
     myModel = MySAMModel(sam, auxiliary_model)
+    if os.path.exists(current_checkpoint):
+        state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
+        myModel.load_state_dict(state_dict["model"])
+        tr_pl_loss_list = state_dict["tr_pl_loss_list"]
+        tr_pl_miou_list = state_dict["tr_pl_miou_list"]
+        tr_pl_dice_list = state_dict["tr_pl_dice_list"]
+        val_pl_loss_list = state_dict["val_pl_loss_list"]
+        val_pl_miou_list = state_dict["val_pl_miou_list"]
+        val_pl_dice_list = state_dict["val_pl_dice_list"]
+
+        best_mIOU = max(val_pl_miou_list)
+        best_dice = max(val_pl_dice_list)
+        start = state_dict["start"]
     myModel = myModel.to(device)
     myModel.train()
     dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size,
@@ -186,26 +185,7 @@ def main(opt):
         if best_mIOU < train_miou:
             best_mIOU = train_miou
             best_dice = train_dice
-            torch.save(sam.state_dict(), best_checkpoint)
-            f = open(os.path.join(prefix, 'best.txt'), 'w')
-            f.write(f"Experimental Day: {datetime.now()}")
-            f.write("\n")
-            f.write(f"mIoU: {str(best_mIOU)}")
-            f.write("\n")
-            f.write(f"dice: {str(best_dice)}")
-            f.write("\n")
-            f.write(f"epochs:{opt.epochs}")
-            f.write("\n")
-            f.write(f"batch_size:{opt.batch_size}")
-            f.write("\n")
-            f.write(f"learning_rate:{opt.lr}")
-            f.write("\n")
-            f.write(f"vit_type:{opt.vit_type}")
-            f.write("\n")
-            f.write(f"ratio:{opt.ratio}")
-            f.write("\n")
-            f.write(f"data_set : {opt.dataset_name}")
-            f.close()
+            torch.save(myModel.state_dict(), best_checkpoint)
 
         print("train epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
               .format(epoch + 1 + epoch_add, train_miou, train_dice, best_mIOU, best_dice))
@@ -247,7 +227,6 @@ def main(opt):
                 iterations.set_description(pbar_desc)
 
 
-
             val_loss = np.mean(val_loss_list)
             val_miou = np.mean(val_miou_list)
             val_dice = np.mean(val_dice_list)
@@ -256,6 +235,25 @@ def main(opt):
             val_pl_loss_list.append(val_loss)
             val_pl_miou_list.append(val_miou)
             val_pl_dice_list.append(val_dice)
+            f = open(os.path.join(prefix, 'best.txt'), 'w')
+            f.write(f"Experimental Day: {datetime.now()}")
+            f.write("\n")
+            f.write(f"mIoU: {str(val_miou)}")
+            f.write("\n")
+            f.write(f"dice: {str(val_dice)}")
+            f.write("\n")
+            f.write(f"epochs:{opt.epochs}")
+            f.write("\n")
+            f.write(f"batch_size:{opt.batch_size}")
+            f.write("\n")
+            f.write(f"learning_rate:{opt.lr}")
+            f.write("\n")
+            f.write(f"vit_type:{opt.vit_type}")
+            f.write("\n")
+            f.write(f"ratio:{opt.ratio}")
+            f.write("\n")
+            f.write(f"data_set : {opt.dataset_name}")
+            f.close()
 
 
         metrics_result = metrics.mean(len(dataloaders['test']))
