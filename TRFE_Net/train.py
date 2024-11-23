@@ -50,7 +50,7 @@ def get_arguments():
     ## Model settings
     # unet, trfe, trfe1, trfe2, mtnet, segnet, deeplab-resnet50, fcn
     # TransUnet: ViT-B_16, ViT-B_32, ViT-L_16, ViT-L_32, ViT-H_14, R50-ViT-B_16, R50-ViT-L_16
-    parser.add_argument('-model_name', type=str, default='cpfnet')
+    parser.add_argument('-model_name', type=str, default='unet')
     parser.add_argument('-criterion', type=str, default='Dice')
     parser.add_argument('-pretrain', type=str, default='None')  # THYROID
 

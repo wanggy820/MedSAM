@@ -61,7 +61,7 @@ seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mea
 ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
 
 loss = nn.SmoothL1Loss()
-def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
+def compute_loss(pred_mask, true_mask):
     # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
     # fl = focal_loss(pred_mask, true_mask)
     # dl = dice_loss(pred_mask, true_mask)

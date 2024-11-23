@@ -39,7 +39,7 @@ def main():
 
     save_models_path = opt.save_models_path
     dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
-    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}_heigh"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}"
     logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
     if not os.path.exists(val_dataset):
@@ -54,20 +54,19 @@ def main():
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
     # set up model
-    sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint).to(device)
-    sam.eval()
+    sam = sam_model_registry["vit_my_sam"](checkpoint=checkpoint).to(device)
+
+    myModel = torch.load(best_checkpoint, map_location=torch.device('cpu'))
+    myModel.eval()
+
+
     auxiliary_model = BPATUNet(n_classes=1)
-    auxiliary_model.load_state_dict(torch.load(opt.auxiliar_model_path, map_location=torch.device('cpu')))
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliar_model_path, map_location=torch.device('cpu'), weights_only=True))
     auxiliary_model.eval()
-    if opt.auxiliar_model == 'MySAMModel':
-        auxiliary_model = MySAMModel(sam, auxiliary_model)
 
     auxiliary_model = auxiliary_model.to(device)
-    myModel = MySAMModel(sam, auxiliary_model)
-    state_dict = torch.load(best_checkpoint, map_location=torch.device('cpu'))
-    myModel.load_state_dict(state_dict)
-    myModel = myModel.to(device)
-    myModel.eval()
+
+
     dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
     with torch.no_grad():
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
@@ -83,7 +82,7 @@ def main():
             # 将训练数据移到指定设备，这里是GPU
             mask = data['mask'].to(device, dtype=torch.float32)
             size = data["size"]
-            low_res_pred, val_IOU = myModel(data)
+            low_res_pred, unet_pre, val_IOU = myModel(data)
 
             _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, mask)
             metrics.update(recall=_recall, specificity=_specificity, precision=_precision,

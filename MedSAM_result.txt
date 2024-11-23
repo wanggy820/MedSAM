@@ -121,7 +121,10 @@ dice 84.3
 Model val loss --- Total loss: 0.80992, total mIOU: 0.75735, total dice: 0.84302
 
 沒有凍結prompt + decoder  + noise
-dice 84.31
+dice 84.31 - 84.35
+
+沒有凍結prompt + decoder  + noise + denoise
+recall: 0.8669, specificity: 0.9842, precision: 0.8688, F1_score:0.8433, acc: 0.9726, iou: 0.7579, mae: 0.0274, dice: 0.8433, hd: 14.2931, auc: 0.9256
 
 
 

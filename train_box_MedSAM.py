@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -105,12 +105,10 @@ def main(opt):
     auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path))
     auxiliary_model = auxiliary_model.to(device)
     auxiliary_model.eval()
-    if opt.auxiliary_model == 'MySAMModel':
-        auxiliary_model = MySAMModel(sam, auxiliary_model)
 
     myModel = MySAMModel(sam, auxiliary_model)
     if os.path.exists(current_checkpoint):
-        state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'))
+        state_dict = torch.load(current_checkpoint, map_location=torch.device('cpu'), weights_only=False)
         myModel.load_state_dict(state_dict["model"])
         tr_pl_loss_list = state_dict["tr_pl_loss_list"]
         tr_pl_miou_list = state_dict["tr_pl_miou_list"]
@@ -135,37 +133,24 @@ def main(opt):
         myModel.train()
         iterations = tqdm(dataloaders['train'])
 
-        length = opt.batch_size * len(dataloaders['train']) / 10
-        resultJson = []
         # 循环进行模型的多轮训练
         for train_data in iterations:
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
+            train_edges_1024 = train_data['edges_1024'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
-            low_res_pred, train_IOU = myModel(train_data)
+            low_res_pred, unet_pre, train_IOU = myModel(train_data)
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou, train_true_dice = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res_pred, train_target_mask) + compute_loss(unet_pre, train_edges_1024)
             train_loss_one.backward()
 
             optimizer.step()
             train_loss_list.append(train_loss_one.item())
-
-            for dice, image_path, mask_path in zip(train_true_dice, train_data['image_path'], train_data['mask_path']):
-                d = {"dice" : dice.item(), "image_path" : image_path, "mask_path" : mask_path}
-                index = 0
-                for  dict in resultJson:
-                    if dict["dice"] <= dice:
-                        break
-                    index = index + 1
-                resultJson.insert(index, d)
-                count = len(resultJson)
-                if count > length:
-                    resultJson.pop(0)
 
             pbar_desc = "Model train loss --- "
             pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
@@ -185,14 +170,11 @@ def main(opt):
         if best_mIOU < train_miou:
             best_mIOU = train_miou
             best_dice = train_dice
-            torch.save(myModel.state_dict(), best_checkpoint)
+            torch.save(myModel, best_checkpoint)
 
         print("train epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
               .format(epoch + 1 + epoch_add, train_miou, train_dice, best_mIOU, best_dice))
 
-        json_data = json.dumps(resultJson)
-        with open("result.json", "w") as file:
-            file.write(json_data)
         # -------------- eval --------------
         sam.eval()
         myModel.eval()
@@ -207,14 +189,16 @@ def main(opt):
             # 循环进行模型的多轮训练
             for val_data in iterations:
                 val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
-                low_res_pred, val_IOU = myModel(val_data)
+                val_edges_1024 = val_data['edges_1024'].to(device, dtype=torch.float32)
+                low_res_pred, unet_pre, val_IOU = myModel(val_data)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
                 val_true_iou, val_true_dice = mean_iou(low_res_pred, val_target_mask, eps=1e-6)
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = compute_loss(low_res_pred, val_target_mask, val_IOU, val_true_iou)
+                val_loss_one = compute_loss(low_res_pred, val_target_mask) + compute_loss(unet_pre, val_edges_1024)
+
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
                                F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
