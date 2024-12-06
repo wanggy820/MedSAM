@@ -559,6 +559,14 @@ Mask2Former的核心创新在于其遮蔽注意力机制。
 局限性：在处理小对象时的性能仍有提升空间，且在泛化到新任务时仍需要针对性的训练。
 
 
+
+
+microsoft  generative-ai
+https://github.com/microsoft/generative-ai-for-beginners/blob/main/02-exploring-and-comparing-different-llms/README.md
+
+论文 BEIT， BEIT V2
+
+
 '''
 
 
