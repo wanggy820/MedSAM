@@ -575,6 +575,10 @@ https://mp.weixin.qq.com/s?__biz=MzIwNDY0MjYzOA==&mid=2247514749&idx=1&sn=bfa35f
 
 MAE:Masked Autoencoder
 
+
+ios 
+https://www.jianshu.com/p/410f01d9e638
+https://zhuanlan.zhihu.com/p/275986408
 '''
 
 
