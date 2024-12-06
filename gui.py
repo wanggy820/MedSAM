@@ -566,6 +566,14 @@ https://github.com/microsoft/generative-ai-for-beginners/blob/main/02-exploring-
 
 论文 BEIT， BEIT V2
 
+https://github.com/open-mmlab/mmselfsup/tree/main/configs/selfsup/beit
+
+
+https://blog.csdn.net/RichardsZ_/article/details/125708964
+https://blog.csdn.net/oYeZhou/article/details/113770019
+https://mp.weixin.qq.com/s?__biz=MzIwNDY0MjYzOA==&mid=2247514749&idx=1&sn=bfa35fd34561201469e9fcafd6a45a4f&chksm=968f621c76c6bbfcf94570a18f5f14511e6c8f50d39a20729660d07427a218675d6dd118028e&scene=27
+
+MAE:Masked Autoencoder
 
 '''
 
