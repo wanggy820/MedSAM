@@ -23,7 +23,7 @@ from torch import optim
 from segment_anything import sam_model_registry
 import torch.nn.functional as F
 from TRFE_Net.visualization.metrics import Metrics, evaluate
-
+from torchvision.transforms import ToPILImage
 # 设置了一些配置参数
 beta = (0.9, 0.999)
 milestone = [60000, 86666]
@@ -88,8 +88,8 @@ def main(opt):
     sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
     sam = sam.to(device=device)
 
-    net = Unet(in_ch=3, out_ch=1).to(device=device)
-    net.load_state_dict(torch.load("./save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location=torch.device("cpu")))
+    net = Unet(in_ch=1, out_ch=1).to(device=device)
+    # net.load_state_dict(torch.load("./save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location=torch.device("cpu")))
     optimizer = optim.AdamW(net.parameters(), lr=lr, betas=beta, weight_decay=opt.weight_decay)
 
     print('Training Start')
@@ -112,15 +112,15 @@ def main(opt):
 
         # 循环进行模型的多轮训练
         for train_data in iterations:
-            edges = train_data['edges_256'].to(device, dtype=torch.float32)
+            edges = train_data['mask'].to(device, dtype=torch.float32)
             image_256 = train_data['image_256'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
             low_res_pred = net(image_256)
-            pre = torch.sigmoid(low_res_pred)
 
-            train_loss_one = cross_entropy_loss(pre, edges)
+
+            train_loss_one = cross_entropy_loss(low_res_pred, edges)
             train_loss_one.backward()
 
             optimizer.step()
@@ -130,11 +130,14 @@ def main(opt):
             pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
             iterations.set_description(pbar_desc)
 
+            # pre = torch.sigmoid(low_res_pred)
             # pre = torch.where(edges > 0.5, 1.0, 0.0)
             # c = pre.max()
             # b = pre.sum()
             # a= (pre*255).squeeze()
-            # cv2.imwrite("image.png", a.cpu().detach().numpy())
+            # to_pil_image = ToPILImage()
+            # pil_image = to_pil_image(a)
+            # pil_image.save('image.png')
             # print('---')
 
         train_loss = np.mean(train_loss_list)

@@ -1,4 +1,7 @@
 import torch.nn as nn
+
+from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
+from BPAT_UNet.utils import SoftDiceLoss
 from MedSAM import MedSAM
 from skimage import transform, io
 import pytorch_grad_cam
@@ -8,10 +11,12 @@ import os
 import cv2
 import numpy as np
 import torch
+
+
 from segment_anything.modeling import TwoWayTransformer, Sam, ImageEncoderViT, PromptEncoder
 from segment_anything.modeling.mask_decoder_feature_map import FeatureMapMaskDecoder
 from utils.box import find_bboxes
-from utils.data_convert import getDatasets
+from utils.data_convert import getDatasets, build_dataloader, get_click_prompt
 from functools import partial
 from pathlib import Path
 import urllib.request
@@ -25,38 +30,40 @@ np.random.seed(2023)
 
 SAM_MODEL_TYPE = "vit_b"
 
-def interaction_u2net_predict(sam, mask_path, user_box):
-    mask_np = io.imread(mask_path)
-    H, W = mask_np.shape
-    bboxes = find_bboxes(mask_np)
-    prompt_box = bboxes / np.array([W, H, W, H]) * 1024
-
-    prompt_masks = None
-    if user_box:
-        mask_256 = transform.resize(
-            mask_np, (256, 256), order=3, preserve_range=True, anti_aliasing=True
-        ).astype(np.uint8)
-        mask_256 = (mask_256 - mask_256.min()) / np.clip(
-            mask_256.max() - mask_256.min(), a_min=1e-8, a_max=None
-        )  # normalize to [0, 1], (H, W, 1)
-        prompt_masks = np.expand_dims(mask_256, axis=0).astype(np.float32)
-
-    sam.setBox(prompt_box, prompt_masks, W, H)
 
 
-def get_img_1024_tensor(img_3c):
-    img_1024 = transform.resize(
-        img_3c, (1024, 1024), order=3, preserve_range=True, anti_aliasing=True
-    ).astype(np.uint8)
-    img_1024 = (img_1024 - img_1024.min()) / np.clip(
-        img_1024.max() - img_1024.min(), a_min=1e-8, a_max=None
-    )  # normalize to [0, 1], (H, W, 3)
-    # convert the shape to (3, H, W)
-    img_1024_tensor = (
-        torch.tensor(img_1024).float().permute(2, 0, 1).unsqueeze(0).to(device)
-    )
+class MySAMModel(nn.Module):
+    def __init__( self, sam, auxiliary_model):
+        super().__init__()
+        self.sam = sam
+        self.auxiliary_model = auxiliary_model
+        for param in sam.image_encoder.parameters():
+            param.requires_grad = False
+        self.data = None
 
-    return img_1024_tensor
+    def forward(self, data):
+        data = self.data
+        image = data['image'].to(self.sam.device)
+        prompt_box = data["prompt_box"].to(self.sam.device)
+        prompt_masks = data["prompt_masks"].to(self.sam.device)
+        points = get_click_prompt(data, self.sam.device)
+
+        with torch.no_grad():
+            encode_feature = self.sam.image_encoder(image)  # (3, 256, 64, 64)
+            # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
+        sparse_embeddings, dense_embeddings = self.sam.prompt_encoder(points=points, boxes=prompt_box, masks=prompt_masks)
+        #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
+        pre_mask = self.sam.mask_decoder(
+            image_embeddings=encode_feature,
+            image_pe=self.sam.prompt_encoder.get_dense_pe(),
+            sparse_prompt_embeddings=sparse_embeddings,
+            dense_prompt_embeddings=dense_embeddings,
+            multimask_output=False)
+        low_res_pred = torch.sigmoid(pre_mask)
+        return low_res_pred
+
+    def setData(self, data):
+        self.data = data
 
 
 def _build_sam(
@@ -189,13 +196,10 @@ class SAMTarget(nn.Module):
 
     def forward(self, x):
         # 读取图片，将图片转为RGB
-        origin_img = cv2.imread(self.input)
-        rgb_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2GRAY)
 
-        prompt_masks = np.expand_dims(rgb_img, axis=0).astype(np.float32)
-        crop_img = torch.from_numpy(prompt_masks) / 255
+        crop_img = self.input["mask"]
 
-        bce_loss = nn.BCELoss(reduction='mean')
+        bce_loss = SoftDiceLoss()
         loss = bce_loss(x, crop_img)
         return loss
 
@@ -203,38 +207,65 @@ class SAMTarget(nn.Module):
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid_tn3k', help="dataset name")
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--num_workers', type=int, default=0, help='num_workers')
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
-    parser.add_argument('--use_box', type=bool, default=True, help='is use box')
+    parser.add_argument('--save_models_path', type=str, default='./save_models', help='model path directory')
+    parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
+    parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
+    parser.add_argument('--fold', type=int, default=0)
+    # parser.add_argument('-auxiliar_model', type=str, default='BPATUNet')
+    parser.add_argument('-auxiliary_model', type=str, default='MySAMModel')
+    parser.add_argument('-auxiliary_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
     return parser
 
 
 def main():
     opt = get_argparser().parse_args()
     # set up model
-    model_path = "./models_no_box/"
-    if opt.use_box:
-        model_path = "./models_box/"
-    checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
-    if not os.path.exists(checkpoint):
-        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
+
+    save_models_path = opt.save_models_path
+    dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}_heigh"
+
+    # --------- 3. model define ---------
+    best_checkpoint = f"{prefix}/sam_best.pth"
+
+    checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
     sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=checkpoint).to(device)
 
     medsam = MedSAM(sam.image_encoder, sam.mask_decoder, sam.prompt_encoder)
     medsam.eval()
 
-    print(medsam.mask_decoder)
-    target_layers = [medsam.mask_decoder]
+    auxiliary_model = BPATUNet(n_classes=1)
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path, map_location=torch.device('cpu')))
+    auxiliary_model = auxiliary_model.to(device)
+    auxiliary_model.eval()
 
-    img_name_list, lbl_name_list = getDatasets(opt.dataset_name, opt.data_dir, "val")
+    myModel = torch.load(best_checkpoint, map_location=torch.device('cpu'), weights_only=True)
+    myModel = myModel.to(device)
+    myModel.train()
+
+    print(medsam.mask_decoder)
+    target_layers = [myModel.sam.mask_decoder]
+
+    img_name_list, lbl_name_list, _ = getDatasets(opt.dataset_name, opt.data_dir, "test", 0)
+    dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size,
+                                   opt.num_workers, opt.ratio, opt.fold)
 
     # 实例化cam，得到指定feature map的可视化数据
-    cam = pytorch_grad_cam.GradCAMPlusPlus(model=medsam, target_layers=target_layers)
+    cam = pytorch_grad_cam.GradCAMPlusPlus(model=myModel, target_layers=target_layers)
 
-    for image_path, mask_path in zip(img_name_list, lbl_name_list):
+    for index, data in enumerate(dataloaders["test"]):
+        image_path = data["image_path"][0]
+        # mask_path = data["mask_path"]
         print(f"image_path:{image_path}")
+        myModel.setData(data)
+        net_input = data["image"]
+        grayscale_cam = cam(net_input, targets=[SAMTarget(data)])
+        grayscale_cam = grayscale_cam[0, :]
 
-        interaction_u2net_predict(medsam, mask_path, opt.use_box)
 
         img_np = io.imread(image_path)
         if len(img_np.shape) == 2:
@@ -242,15 +273,9 @@ def main():
         else:
             img_3c = img_np
         H, W, _ = img_3c.shape
-        net_input = get_img_1024_tensor(img_3c)
 
         canvas_img = cv2.cvtColor(img_3c, cv2.COLOR_RGB2BGR)
-
-        grayscale_cam = cam(net_input, targets=[SAMTarget(mask_path)])
-        grayscale_cam = grayscale_cam[0, :]
-
         origin_cam = cv2.resize(grayscale_cam, (W, H))
-
         # 将feature map与原图叠加并可视化
         src_img = np.float32(canvas_img) / 255
         visualization_img = show_cam_on_image(src_img, origin_cam, use_rgb=False)

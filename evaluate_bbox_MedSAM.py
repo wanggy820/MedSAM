@@ -29,8 +29,8 @@ def get_argparser():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     parser.add_argument('--fold', type=int, default=0)
-    parser.add_argument('-auxiliar_model', type=str, default='BPATUNet')
-    parser.add_argument('-auxiliar_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
+    parser.add_argument('-auxiliary_model', type=str, default='BPATUNet')
+    parser.add_argument('-auxiliary_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
     return parser
 
 
@@ -54,14 +54,15 @@ def main():
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
     # set up model
-    sam = sam_model_registry["vit_my_sam"](checkpoint=checkpoint).to(device)
+    sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint).to(device)
 
-    myModel = torch.load(best_checkpoint, map_location=torch.device('cpu'))
+    myModel = torch.load(best_checkpoint, map_location=torch.device('cpu'), weights_only=True)
+    myModel = myModel.to(device)
     myModel.eval()
 
 
     auxiliary_model = BPATUNet(n_classes=1)
-    auxiliary_model.load_state_dict(torch.load(opt.auxiliar_model_path, map_location=torch.device('cpu'), weights_only=True))
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path, map_location=torch.device('cpu'), weights_only=True))
     auxiliary_model.eval()
 
     auxiliary_model = auxiliary_model.to(device)

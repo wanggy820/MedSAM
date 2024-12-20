@@ -13,6 +13,7 @@ from PIL import Image
 from torchvision import transforms
 from BPAT_UNet.dataloaders import custom_transforms as trforms, utils
 from matplotlib.image import imsave
+from torchvision.utils import save_image
 
 class MedSAMBox(Dataset):
     def __init__(self, sam, auxiliary_model, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02, data_type='train'):
@@ -53,13 +54,12 @@ class MedSAMBox(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
         mask_path = self.mask_list[idx]  # 读取mask data 路径
-        auxiliary_path = self.auxiliary_list[idx]
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
-        sigma = 20.0
-        de_img = cv2.fastNlMeansDenoising(img, None, sigma, 5, 11)
-        img = cv2.cvtColor(de_img, cv2.COLOR_BGR2RGB)
+        # sigma = 20.0
+        # de_img = cv2.fastNlMeansDenoising(img, None, sigma, 5, 11)
+        # img = cv2.cvtColor(de_img, cv2.COLOR_BGR2RGB)
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
 
         auxiliary_np = mask_np
@@ -93,19 +93,25 @@ class MedSAMBox(Dataset):
         img = torch.as_tensor(img)  # torch tensor 变更
         img = img.permute(2, 0, 1).contiguous()[None, :, :, :].squeeze(0)  # (高, 宽, 通道) -> (通道, 高, 宽) 变更后 设置添加None
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
-        if self.data_type == 'train':
-            min1 = img.min()
-            max1 = img.max()
-            pixel_mean = torch.Tensor([123.675, 116.28, 103.53]).view(-1, 1, 1)
-            pixel_std = torch.Tensor([58.395, 57.12, 57.375]).view(-1, 1, 1)
-            random_int_tensor = torch.randint(low=0, high=255, size=img.shape)
-            denoise = (random_int_tensor - pixel_mean) / pixel_std
-            img = img + 0.2 * denoise.to(device=self.device)
-            img = torch.clamp(img, min1, max1)
+        # if self.data_type == 'train':
+        #     min1 = img.min()
+        #     max1 = img.max()
+        #     pixel_mean = torch.Tensor([123.675, 116.28, 103.53]).view(-1, 1, 1)
+        #     pixel_std = torch.Tensor([58.395, 57.12, 57.375]).view(-1, 1, 1)
+        #     random_int_tensor = torch.randint(low=0, high=255, size=img.shape)
+        #     denoise = (random_int_tensor - pixel_mean) / pixel_std
+        #     img = img + 0.2 * denoise.to(device=self.device)
+        #     img = torch.clamp(img, min1, max1)
 
 
         image_256 = F.interpolate(img.unsqueeze(0), size=(self.output_size, self.output_size), mode='bilinear', align_corners=False)
         image_256 = image_256.squeeze(0)
+
+        image_256_np = image_256.permute(1, 2, 0).cpu().numpy()
+        image_256 = cv2.cvtColor(image_256_np,  cv2.COLOR_BGR2GRAY)
+        image_256 = torch.as_tensor(image_256)  # torch tensor 变更
+        image_256 = image_256.permute(0, 1).unsqueeze(0)
+        # save_image(image_256, 'image2.png')
         #####################################
 
         mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)

@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=3, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -75,7 +75,7 @@ def main(opt):
         checkpoint = f'./work_dir/SAM/sam_vit_h_4b8939.pth'
     else:
         checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
-    sam = sam_model_registry["vit_my_sam"](checkpoint=checkpoint)
+    sam = sam_model_registry[opt.vit_type](checkpoint=checkpoint)
 
     current_checkpoint = f"{prefix}/sam_current.pth"
     best_checkpoint = f"{prefix}/sam_best.pth"
@@ -136,7 +136,7 @@ def main(opt):
         # 循环进行模型的多轮训练
         for train_data in iterations:
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
-            train_edges_1024 = train_data['edges_1024'].to(device, dtype=torch.float32)
+            train_edges_256 = train_data['edges_256'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
@@ -146,7 +146,7 @@ def main(opt):
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = compute_loss(low_res_pred, train_target_mask) + compute_loss(unet_pre, train_edges_1024)
+            train_loss_one = compute_loss(low_res_pred, train_target_mask) + compute_loss(unet_pre, train_edges_256)
             train_loss_one.backward()
 
             optimizer.step()
@@ -189,7 +189,7 @@ def main(opt):
             # 循环进行模型的多轮训练
             for val_data in iterations:
                 val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
-                val_edges_1024 = val_data['edges_1024'].to(device, dtype=torch.float32)
+                val_edges_256 = val_data['edges_256'].to(device, dtype=torch.float32)
                 low_res_pred, unet_pre, val_IOU = myModel(val_data)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
@@ -197,7 +197,7 @@ def main(opt):
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = compute_loss(low_res_pred, val_target_mask) + compute_loss(unet_pre, val_edges_1024)
+                val_loss_one = compute_loss(low_res_pred, val_target_mask) + compute_loss(unet_pre, val_edges_256)
 
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,

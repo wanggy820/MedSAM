@@ -11,10 +11,10 @@ class MySAMModel(nn.Module):
         super().__init__()
         self.sam = sam
         self.auxiliary_model = auxiliary_model
-        self.unet = Unet(in_ch=3, out_ch=1)
+        self.unet = Unet(in_ch=1, out_ch=1)
         state_dict = torch.load("./save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location=torch.device("cpu"), weights_only=True)
         self.unet.load_state_dict(state_dict)
-        # .to(device=sam.device))
+        self.unet = self.unet.to(device=sam.device)
         for param in sam.image_encoder.parameters():
             param.requires_grad = False
 
@@ -24,12 +24,8 @@ class MySAMModel(nn.Module):
         prompt_masks = data["prompt_masks"].to(self.sam.device)
         points = get_click_prompt(data, self.sam.device)
 
-        # image_256 = data['image_256'].to(self.sam.device, dtype=torch.float32)
-        unet_pre = self.unet(image)
-        # resize_img = F.interpolate(unet_pre, size=(1024, 1024), mode="bilinear", align_corners=False)
-
         with torch.no_grad():
-            encode_feature = self.sam.image_encoder(unet_pre)  # (3, 256, 64, 64)
+            encode_feature = self.sam.image_encoder(image)  # (3, 256, 64, 64)
             # 使用 sam 模型的 image_encoder 提取图像特征，并使用 prompt_encoder 提取稀疏和密集的嵌入。在本代码中进行提示输入，所以都是None.
         sparse_embeddings, dense_embeddings = self.sam.prompt_encoder(points=points, boxes=prompt_box, masks=prompt_masks)
         #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
@@ -39,6 +35,6 @@ class MySAMModel(nn.Module):
             sparse_prompt_embeddings=sparse_embeddings,
             dense_prompt_embeddings=dense_embeddings,
             multimask_output=False)
-        low_res_pred = torch.sigmoid(pre_mask)
-        unet_pre = torch.sigmoid(unet_pre)
-        return low_res_pred, unet_pre, iou
+
+        unet_pre = self.unet(pre_mask)
+        return unet_pre + pre_mask, pre_mask, iou
