@@ -51,7 +51,7 @@ class MedSAMBox(Dataset):
     def __getitem__(self, idx):
         image_path = self.image_list[idx]  # 读取image data路径
         mask_path = self.mask_list[idx]  # 读取mask data 路径
-        auxiliary_path = self.auxiliary_list[idx]
+        # auxiliary_path = self.auxiliary_list[idx]
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
