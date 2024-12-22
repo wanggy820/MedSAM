@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -35,14 +37,29 @@ def boundary_loss(pred, target):
     return loss_f(pred, target)
 
 class SoftDiceLoss(nn.Module):
-    def __init__(self):
+    def __init__(self, num_points=112*112):
         super(SoftDiceLoss, self).__init__()
+        self.num_points = num_points
 
     def forward(self, pred, target):
         num = target.size(0)
         probs = torch.sigmoid(pred)
         m1 = probs.view(num, -1)
         m2 = target.view(num, -1)
+        # total = m1.shape[-1]
+        # if total > self.num_points:
+        #     score = 0
+        #     for j in range(num):
+        #         indices = random.sample(range(total), self.num_points)
+        #         pre_m = [m1[j][i] for i in indices]
+        #         m_1 = torch.tensor(pre_m, requires_grad=True).reshape((1, self.num_points)).to(pred.device)
+        #         pre_t = [m2[j][i] for i in indices]
+        #         m_2 = torch.tensor(pre_t, requires_grad=True).reshape((1, self.num_points)).to(pred.device)
+        #         intersection = (m_1 * m_2)
+        #         score = score + 2. * (intersection.sum(1) + 1) / (m_1.sum(1) + m_2.sum(1) + 1)
+        #     score = 1 - score.sum() / num
+        #     return score
+
         intersection = (m1 * m2)
         score = 2. * (intersection.sum(1) + 1) / (m1.sum(1) + m2.sum(1) + 1)
         score = 1 - score.sum() / num

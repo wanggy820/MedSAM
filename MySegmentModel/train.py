@@ -99,7 +99,7 @@ def main(opt):
     auxiliary_model = auxiliary_model.to(device)
     auxiliary_model.eval()
 
-    model = build_model()
+    model = build_model(checkout=best_checkpoint)
     model = model.to(device)
     model.train()
 
@@ -126,13 +126,13 @@ def main(opt):
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
-            low_res_pred, train_IOU = model(train_data)
+            unet_pre, low_res_pred, train_IOU = model(train_data)
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou, train_true_dice = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res_pred, train_target_mask) + compute_loss(unet_pre, train_target_mask)
             train_loss_one.backward()
 
             optimizer.step()
@@ -155,7 +155,7 @@ def main(opt):
             pbar_desc += f", total mIOU: {np.mean(train_miou_list):.5f}"
             pbar_desc += f", total dice: {np.mean(train_dice_list):.5f}"
             iterations.set_description(pbar_desc)
-            break
+
 
         train_loss = np.mean(train_loss_list)
         train_miou = np.mean(train_miou_list)
@@ -182,14 +182,14 @@ def main(opt):
             # 循环进行模型的多轮训练
             for val_data in iterations:
                 val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
-                low_res_pred, val_IOU = model(val_data)
+                unet, low_res_pred, val_IOU = model(val_data)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
                 val_true_iou, val_true_dice = mean_iou(low_res_pred, val_target_mask, eps=1e-6)
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = compute_loss(low_res_pred, val_target_mask, val_IOU, val_true_iou)
+                val_loss_one = compute_loss(low_res_pred, val_target_mask) + compute_loss(unet, val_target_mask)
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
                                F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
@@ -200,8 +200,6 @@ def main(opt):
                 pbar_desc += f", total mIOU: {np.mean(val_miou_list):.5f}"
                 pbar_desc += f", total dice: {np.mean(val_dice_list):.5f}"
                 iterations.set_description(pbar_desc)
-                break
-
 
 
             val_loss = np.mean(val_loss_list)

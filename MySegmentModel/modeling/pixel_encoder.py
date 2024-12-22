@@ -53,10 +53,11 @@ class PixelEncoderLayer(nn.Module):
                  out_chans: int = 256,  # 输出通道
                  ):
         super().__init__()
+        self.in_chans = 3
         self.image_encoder = ImageEncoderViT(
             img_size=img_size,
             patch_size=patch_size,
-            in_chans=1,
+            in_chans=self.in_chans,
             embed_dim=embed_dim,
             depth=depth,
             num_heads=num_heads,
@@ -69,4 +70,5 @@ class PixelEncoderLayer(nn.Module):
         )
 
     def forward(self, x):
+        x = x.repeat(1, self.in_chans, 1, 1)
         return self.image_encoder(x)

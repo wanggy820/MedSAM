@@ -1,12 +1,14 @@
 import glob
 import json
 import os
+import random
 
 import monai
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from tifffile.tifffile import indent
 from torch import nn
 
 from torch.utils.data import DataLoader
@@ -61,16 +63,9 @@ seg_loss = monai.losses.DiceLoss(sigmoid=True, squared_pred=True, reduction="mea
 ce_loss = nn.BCEWithLogitsLoss(reduction="mean")
 
 loss = nn.SmoothL1Loss()
-def compute_loss(pred_mask, true_mask, pred_iou, true_iou):
-    # pred_mask = F.sigmoid(pred_mask).squeeze(1).to(dtype=torch.float32)
-    # fl = focal_loss(pred_mask, true_mask)
-    # dl = dice_loss(pred_mask, true_mask)
-    # mask_loss = 20 * fl + dl
-    # iou_loss = F.mse_loss(pred_iou, true_iou)
-    # total_loss = mask_loss + iou_loss
-    # soft_dice
+def compute_loss(pre_mask, true_mask):
     total_loss = soft_dice(
-        pred_mask, true_mask.float()
+        pre_mask, true_mask.float()
     )
 
     return total_loss

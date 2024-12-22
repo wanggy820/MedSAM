@@ -43,6 +43,7 @@ class MySegmentModel(nn.Module):
         points = get_click_prompt(data, self.device)
 
         x = self.backbone(image)
+        x = x.sigmoid()
         x1 = self.pixel_encoder(x)
         mask_features = F.interpolate(prompt_masks, size=self.pixel_encoder.image_size, mode="bilinear",
                                       align_corners=False)
@@ -56,18 +57,20 @@ class MySegmentModel(nn.Module):
             dense_prompt_embeddings=dense_embeddings,
             multimask_output=False)
         low_res_pred = torch.sigmoid(pre_mask)
-        return low_res_pred, iou
+        return x, low_res_pred, iou
 
 
 def build_model(checkout=None) -> MySegmentModel:
     prompt_embed_dim = 256
     image_size = 1024
     vit_patch_size = 16
-    mask_encoder_depth = 2
-    pixel_encoder_embed_dim = 768
+    mask_encoder_depth = 12
+    pixel_encoder_embed_dim = 1280
     image_embedding_size = image_size // vit_patch_size
 
     backbone = Unet(3, 1)
+    state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu")
+    backbone.load_state_dict(state_dict)
     pixel_encoder = PixelEncoder(img_size=image_size, patch_size=vit_patch_size, embed_dim=pixel_encoder_embed_dim)
     mask_encoder = MaskEncoder(depth=mask_encoder_depth, prompt_embed_dim=prompt_embed_dim)
 
