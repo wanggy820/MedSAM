@@ -89,7 +89,7 @@ def main(opt):
     sam = sam.to(device=device)
 
     net = Unet(in_ch=3, out_ch=1).to(device=device)
-    # net.load_state_dict(torch.load("./save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location=torch.device("cpu")))
+    net.load_state_dict(torch.load("./save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location=torch.device("cpu")))
     optimizer = optim.AdamW(net.parameters(), lr=lr, betas=beta, weight_decay=opt.weight_decay)
 
     print('Training Start')

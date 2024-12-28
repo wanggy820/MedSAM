@@ -25,7 +25,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -118,37 +118,26 @@ def main(opt):
         model.train()
         iterations = tqdm(dataloaders['train'])
 
-        length = opt.batch_size * len(dataloaders['train']) / 10
-        resultJson = []
         # 循环进行模型的多轮训练
         for train_data in iterations:
             train_target_mask = train_data['mask'].to(device, dtype=torch.float32)
             # 对优化器的梯度进行归零
             optimizer.zero_grad()
 
-            unet_pre, low_res_pred, train_IOU = model(train_data)
+            unet_pre, mask_former, low_res_pred = model(train_data)
             # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
             train_true_iou, train_true_dice = mean_iou(low_res_pred, train_target_mask, eps=1e-6)
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = compute_loss(low_res_pred, train_target_mask) + compute_loss(unet_pre, train_target_mask)
+            train_loss_one = (compute_loss(unet_pre, train_target_mask)*0.1 +
+                              compute_loss(mask_former, train_target_mask)*0.2 +
+                              compute_loss(low_res_pred, train_target_mask)*0.7)
             train_loss_one.backward()
 
             optimizer.step()
             train_loss_list.append(train_loss_one.item())
 
-            for dice, image_path, mask_path in zip(train_true_dice, train_data['image_path'], train_data['mask_path']):
-                d = {"dice" : dice.item(), "image_path" : image_path, "mask_path" : mask_path}
-                index = 0
-                for  dict in resultJson:
-                    if dict["dice"] <= dice:
-                        break
-                    index = index + 1
-                resultJson.insert(index, d)
-                count = len(resultJson)
-                if count > length:
-                    resultJson.pop(0)
 
             pbar_desc = "Model train loss --- "
             pbar_desc += f"Total loss: {np.mean(train_loss_list):.5f}"
@@ -161,14 +150,35 @@ def main(opt):
         train_miou = np.mean(train_miou_list)
         train_dice = np.mean(train_dice_list)
 
+        if best_dice < train_dice:
+            best_mIOU = train_miou
+            best_dice = train_dice
+            torch.save(model.state_dict(), best_checkpoint)
+            f = open(os.path.join(prefix, 'best.txt'), 'w')
+            f.write(f"Experimental Day: {datetime.now()}")
+            f.write("\n")
+            f.write(f"mIoU: {str(best_mIOU)}")
+            f.write("\n")
+            f.write(f"dice: {str(best_dice)}")
+            f.write("\n")
+            f.write(f"epochs:{opt.epochs}")
+            f.write("\n")
+            f.write(f"batch_size:{opt.batch_size}")
+            f.write("\n")
+            f.write(f"learning_rate:{opt.lr}")
+            f.write("\n")
+            f.write(f"vit_type:{opt.vit_type}")
+            f.write("\n")
+            f.write(f"ratio:{opt.ratio}")
+            f.write("\n")
+            f.write(f"data_set : {opt.dataset_name}")
+            f.close()
+
         torch.cuda.empty_cache()
         tr_pl_loss_list.append(train_loss)
         tr_pl_miou_list.append(train_miou)
         tr_pl_dice_list.append(train_dice)
 
-        json_data = json.dumps(resultJson)
-        with open("result.json", "w") as file:
-            file.write(json_data)
         # -------------- eval --------------
         model.eval()
         val_loss_list = []
@@ -182,14 +192,17 @@ def main(opt):
             # 循环进行模型的多轮训练
             for val_data in iterations:
                 val_target_mask = val_data['mask'].to(device, dtype=torch.float32)
-                unet, low_res_pred, val_IOU = model(val_data)
+                unet_pre, mask_former, low_res_pred = model(val_data)
 
                 # 计算预测IOU和真实IOU之间的差异，并将其添加到列表中。然后计算训练损失（总损失包括mask损失和IOU损失），进行反向传播和优化器更新。
                 val_true_iou, val_true_dice = mean_iou(low_res_pred, val_target_mask, eps=1e-6)
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = compute_loss(low_res_pred, val_target_mask) + compute_loss(unet, val_target_mask)
+                val_loss_one = (compute_loss(unet_pre, val_target_mask) * 0.1 +
+                                  compute_loss(mask_former, val_target_mask) * 0.2 +
+                                  compute_loss(low_res_pred, val_target_mask) * 0.7)
+
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
                                F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
@@ -211,31 +224,8 @@ def main(opt):
             val_pl_miou_list.append(val_miou)
             val_pl_dice_list.append(val_dice)
 
-            if best_mIOU < val_miou:
-                best_mIOU = val_miou
-                best_dice = val_dice
-                torch.save(model.state_dict(), best_checkpoint)
-                f = open(os.path.join(prefix, 'best.txt'), 'w')
-                f.write(f"Experimental Day: {datetime.now()}")
-                f.write("\n")
-                f.write(f"mIoU: {str(best_mIOU)}")
-                f.write("\n")
-                f.write(f"dice: {str(best_dice)}")
-                f.write("\n")
-                f.write(f"epochs:{opt.epochs}")
-                f.write("\n")
-                f.write(f"batch_size:{opt.batch_size}")
-                f.write("\n")
-                f.write(f"learning_rate:{opt.lr}")
-                f.write("\n")
-                f.write(f"vit_type:{opt.vit_type}")
-                f.write("\n")
-                f.write(f"ratio:{opt.ratio}")
-                f.write("\n")
-                f.write(f"data_set : {opt.dataset_name}")
-                f.close()
 
-        print("val epoch:{:3d}, mIOU:{:3.4f}, dice:{:3.4f}, best mIOU: {:3.4f}), best dice: {:3.4f})"
+        print("val epoch:{:3d},val mIOU:{:3.4f}, val dice:{:3.4f}, train best mIOU: {:3.4f}, train best dice: {:3.4f})"
               .format(epoch + 1 + epoch_add, val_miou, val_dice, best_mIOU, best_dice))
 
         metrics_result = metrics.mean(len(dataloaders['test']))

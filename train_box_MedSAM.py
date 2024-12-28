@@ -29,7 +29,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=12, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -150,7 +150,7 @@ def main(opt):
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = compute_loss(low_res_pred, train_target_mask, train_IOU, train_true_iou)
+            train_loss_one = compute_loss(low_res_pred.sigmoid(), train_target_mask)
             train_loss_one.backward()
 
             optimizer.step()
@@ -207,7 +207,7 @@ def main(opt):
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = compute_loss(low_res_pred, val_target_mask, val_IOU, val_true_iou)
+                val_loss_one = compute_loss(low_res_pred, val_target_mask)
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
                                F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)

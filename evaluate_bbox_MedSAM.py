@@ -29,9 +29,8 @@ def get_argparser():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     parser.add_argument('--fold', type=int, default=0)
-    # parser.add_argument('-auxiliar_model', type=str, default='BPATUNet')
-    parser.add_argument('-auxiliar_model', type=str, default='MySAMModel')
-    parser.add_argument('-auxiliar_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
+    parser.add_argument('-auxiliary_model', type=str, default='BPATUNet')
+    parser.add_argument('-auxiliary_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
     return parser
 
 
@@ -40,7 +39,7 @@ def main():
 
     save_models_path = opt.save_models_path
     dataset_model = f"{save_models_path}/{opt.dataset_name}_fold{opt.fold}"
-    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}_heigh"
+    prefix = f"{dataset_model}/{opt.vit_type}_{opt.ratio:.2f}"
     logging.basicConfig(filename=f'{prefix}/val.log', filemode="w", level=logging.DEBUG)
     val_dataset = f"{prefix}/val/"
     if not os.path.exists(val_dataset):
@@ -48,19 +47,25 @@ def main():
 
     # --------- 3. model define ---------
     best_checkpoint = f"{prefix}/sam_best.pth"
+    if opt.vit_type == "vit_b":
+        checkpoint = f'./work_dir/SAM/sam_vit_b_01ec64.pth'
+    elif opt.vit_type == "vit_h":
+        checkpoint = f'./work_dir/SAM/sam_vit_h_4b8939.pth'
+    else:
+        checkpoint = f'./work_dir/SAM/sam_vit_l_0b3195.pth'
     # set up model
     sam = sam_model_registry[opt.vit_type](checkpoint=best_checkpoint).to(device)
-    sam.eval()
-    auxiliary_model = BPATUNet(n_classes=1)
-    auxiliary_model.load_state_dict(torch.load(opt.auxiliar_model_path))
-    auxiliary_model.eval()
-    if opt.auxiliar_model == 'MySAMModel':
-        auxiliary_model = MySAMModel(sam, auxiliary_model)
 
+
+    auxiliary_model = BPATUNet(n_classes=1)
+    auxiliary_model.load_state_dict(torch.load(opt.auxiliary_model_path, map_location=torch.device('cpu'), weights_only=True))
     auxiliary_model = auxiliary_model.to(device)
+    auxiliary_model.eval()
+
     myModel = MySAMModel(sam, auxiliary_model)
     myModel = myModel.to(device)
     myModel.eval()
+
     dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
     with torch.no_grad():
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
@@ -136,11 +141,12 @@ def main():
                 imo.save(save_image_name)
 
         metrics_result = metrics.mean(len(dataloader))
-        print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
+        DSC_new = (2 * metrics_result['iou']) / (1 + metrics_result['iou'])
+        print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f, DSC:%.4f'
             % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
                metrics_result['F1_score'],
                metrics_result['acc'], metrics_result['iou'], metrics_result['mae'], metrics_result['dice'],
-               metrics_result['hd'], metrics_result['auc']))
+               metrics_result['hd'], metrics_result['auc'], DSC_new))
 
 if __name__ == "__main__":
     main()

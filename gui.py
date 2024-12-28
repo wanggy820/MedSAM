@@ -588,6 +588,11 @@ https://zhuanlan.zhihu.com/p/275986408
 
 
 mask2former
+
+
+
+英文会议（模版，周期短，过审率高） dino  初稿,  对比方法 （2024年，  dice低）
+
 '''
 
 

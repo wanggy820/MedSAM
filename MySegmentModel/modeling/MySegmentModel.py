@@ -1,3 +1,4 @@
+import math
 import os
 
 import torch
@@ -43,21 +44,32 @@ class MySegmentModel(nn.Module):
         points = get_click_prompt(data, self.device)
 
         x = self.backbone(image)
-        x = x.sigmoid()
-        x1 = self.pixel_encoder(x)
+        x1 = x.sigmoid()
+        x1 = self.pixel_encoder(x1)
         mask_features = F.interpolate(prompt_masks, size=self.pixel_encoder.image_size, mode="bilinear",
                                       align_corners=False)
-        encode_feature = self.mask_encoder(x1, mask_features)
+        encoder_feature = self.mask_encoder(x1, mask_features)
+        mask_features = F.interpolate(encoder_feature, size=self.prompt_encoder.embed_dim, mode="bilinear",
+                                      align_corners=False)
+        # (bs, 256, 64, 64)
+        n, c, w, h = encoder_feature.shape
+        w = int(math.sqrt(c * w * h // self.prompt_encoder.embed_dim))
+
+        mask_former = encoder_feature.reshape(n, self.prompt_encoder.embed_dim, w, w)
         sparse_embeddings, dense_embeddings = self.prompt_encoder(points=points, boxes=prompt_box, masks=prompt_masks)
         #  通过 mask_decoder 解码器生成训练集的预测掩码和IOU
         pre_mask, iou = self.mask_decoder(
-            image_embeddings=encode_feature,
+            image_embeddings=mask_former,
             image_pe=self.prompt_encoder.get_dense_pe(),
             sparse_prompt_embeddings=sparse_embeddings,
             dense_prompt_embeddings=dense_embeddings,
             multimask_output=False)
-        low_res_pred = torch.sigmoid(pre_mask)
-        return x, low_res_pred, iou
+        x = x.sigmoid()
+        mask_features = mask_features.sigmoid()
+        pre_mask = pre_mask.sigmoid()
+
+        low_res_pred = x * 0.1 + mask_features * 0.2 + pre_mask * 0.4 + (prompt_masks/255.0) * 0.3
+        return x, mask_features, low_res_pred
 
 
 def build_model(checkout=None) -> MySegmentModel:
@@ -69,10 +81,10 @@ def build_model(checkout=None) -> MySegmentModel:
     image_embedding_size = image_size // vit_patch_size
 
     backbone = Unet(3, 1)
-    state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu")
+    state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu", weights_only=False)
     backbone.load_state_dict(state_dict)
     pixel_encoder = PixelEncoder(img_size=image_size, patch_size=vit_patch_size, embed_dim=pixel_encoder_embed_dim)
-    mask_encoder = MaskEncoder(depth=mask_encoder_depth, prompt_embed_dim=prompt_embed_dim)
+    mask_encoder = MaskEncoder(depth=mask_encoder_depth)
 
     prompt_encoder = PromptEncoder(
         embed_dim=prompt_embed_dim,
@@ -95,5 +107,5 @@ def build_model(checkout=None) -> MySegmentModel:
 
     model = MySegmentModel(backbone, pixel_encoder, mask_encoder, prompt_encoder, mask_decoder)
     if checkout is not None and os.path.exists(checkout):
-        model.load_state_dict(torch.load(checkout, map_location="cpu"))
+        model.load_state_dict(torch.load(checkout, map_location="cpu", weights_only=False))
     return model

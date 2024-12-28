@@ -106,3 +106,15 @@ recall: 0.8655, specificity: 0.9845, precision: 0.8696, F1_score:0.8431, acc: 0.
 ------heigh
 recall: 0.8665, specificity: 0.9844, precision: 0.8688, F1_score:0.8431, acc: 0.9725, iou: 0.7576, mae: 0.0276, dice: 0.8431, hd: 14.2978, auc: 0.9254
 
+
+
+
+
+my model
+recall: 0.8891, specificity: 0.9822, precision: 0.8502, F1_score:0.8447, acc: 0.9726, iou: 0.7600, mae: 0.1736, dice: 0.8447, hd: 14.3962, auc: 0.9357, DSC: 0.8636
+
+prompt
+recall: 0.8665, specificity: 0.9844, precision: 0.8675, F1_score:0.8423, acc: 0.9726, iou: 0.7563, mae: 0.0275, dice: 0.8423, hd: 14.2765, auc: 0.9254, DSC:0.8613
+
+bpat_net
+recall: 0.8557, specificity: 0.9849, precision: 0.8294, F1_score:0.8164, acc: 0.9722, iou: 0.7187, mae: 0.0279, dice: 0.8164, hd: 14.0578, auc: 0.9415, DSC: 0.8363,

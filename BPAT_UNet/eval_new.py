@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import time
 
@@ -65,6 +66,7 @@ def main(args):
     testloader = DataLoader(test_data, batch_size=1, shuffle=False, num_workers=0)
     num_iter_ts = len(testloader)
 
+    logging.basicConfig(filename='val.log', filemode="w", level=logging.DEBUG)
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     net.cuda()
@@ -74,11 +76,13 @@ def main(args):
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score'
                               , 'auc', 'acc', 'iou', 'dice', 'mae', 'hd', 'DSC'])
         total_iou = 0
+        total_dice = 0
         total_cost_time = 0
+        index = 0
         for sample_batched in tqdm(testloader):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
-
+            logging.info("image_path:{}".format(label_name))
             labels = labels.cuda()
             inputs = inputs.cuda()
             if 'trfe' in args.model_name or 'mtnet' in args.model_name:
@@ -108,6 +112,7 @@ def main(args):
                            DSC=_DSC)
 
             total_iou += iou
+            total_dice += _dice.item()
             total_cost_time += cost_time
 
             shape = (size[0, 0], size[0, 1])
@@ -129,16 +134,22 @@ def main(args):
             # cv2.imwrite(save_path_s, save_saliency)
             cv2.imwrite(save_dir + label_name[0], save_png)
 
+            logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                         .format(iou, _dice.item()))
+            logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                         .format(total_iou / (index + 1), total_dice / (index + 1)))
+            index = index + 1
+
     print(args.model_name)
     metrics_result = metrics.mean(len(testloader))
     DSC_new = (2 * metrics_result['iou']) / (1 + metrics_result['iou'])
     print("Test Result:")
     print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, '
-          'iou: %.4f, mae: %.4f, hd: %.4f, auc: %.4f, DSC: %.4f'
+          'iou: %.4f, mae: %.4f, hd: %.4f, auc: %.4f, dice: %.4f, DSC: %.4f, '
         % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
            metrics_result['F1_score'],
            metrics_result['acc'], metrics_result['iou'], metrics_result['mae'],
-           metrics_result['hd'], metrics_result['auc'], DSC_new))
+           metrics_result['hd'], metrics_result['auc'], metrics_result['DSC'], DSC_new))
     print("total_cost_time:", total_cost_time)
     print("loop_cost_time:", time.time() - all_start)
     evaluation_dir = os.path.sep.join([args.save_dir, 'metrics', args.test_fold + '-' + args.test_dataset + '/'])

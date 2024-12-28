@@ -186,3 +186,5 @@ save_models/*
 TRFE_Net/run/*
 TRFE_Net/results/*
 BPAT_UNet/results/*
+Mysegment/save_models/*
+MySegmentModel/save_models/Thyroid_tn3k_fold0/vit_b_1.00/val/*

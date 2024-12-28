@@ -12,6 +12,20 @@ from torchvision import transforms
 from BPAT_UNet.dataloaders import custom_transforms as trforms, utils
 
 
+def remove_noise(image):
+    # 将图片转换为灰度图
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # 使用高斯滤波去除噪声
+    # gaussian_filtered = cv2.GaussianBlur(gray, (5, 5), 0)
+    # 比较原始灰度图和高斯滤波后的图，并保留较暗的像素
+    _, thresholded = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # 使用膨胀和腐蚀去除噪声
+    dilated = cv2.dilate(thresholded, np.ones((3, 3)))
+    eroded = cv2.erode(dilated, np.ones((3, 3)))
+    # 将处理后的图片与原图片进行混合，以减少图片中的纯黑/纯白部分
+    image =  cv2.addWeighted(gray, 1, eroded, -1, 0)
+    return  cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
 class MedSAMBox(Dataset):
     def __init__(self, sam, auxiliary_model, image_list, mask_list, auxiliary_list, bbox_shift=0, ratio=1.02, data_type='train'):
         self.device = sam.device
@@ -55,6 +69,7 @@ class MedSAMBox(Dataset):
         #####################################
 
         img = cv2.imread(image_path)  # 读取原图数据
+        img = remove_noise(img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         mask_np = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)  # 读取掩码数据
         auxiliary_np = mask_np
@@ -89,10 +104,15 @@ class MedSAMBox(Dataset):
         img = img.permute(2, 0, 1).contiguous()[None, :, :, :].squeeze(0)  # (高, 宽, 通道) -> (通道, 高, 宽) 变更后 设置添加None
 
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
-        # min = img.min()
-        # max = img.max()
-        # img = img + 0.1 * torch.randn(img.shape).to(self.device)
-        # img = torch.clamp(img, min, max)
+        # if self.data_type == 'train':
+        #     min1 = img.min()
+        #     max1 = img.max()
+        #     pixel_mean = torch.Tensor([123.675, 116.28, 103.53]).view(-1, 1, 1)
+        #     pixel_std = torch.Tensor([58.395, 57.12, 57.375]).view(-1, 1, 1)
+        #     random_int_tensor = torch.randint(low=0, high=255, size=img.shape)
+        #     denoise = (random_int_tensor - pixel_mean) / pixel_std
+        #     img = img + 0.2 * denoise.to(device=self.device)
+        #     img = torch.clamp(img, min1, max1)
 
         image_256 = F.interpolate(img.unsqueeze(0), size=(self.output_size, self.output_size), mode='bilinear', align_corners=False)
         image_256 = image_256.squeeze(0)
@@ -191,96 +211,10 @@ class MedSAMBox(Dataset):
             sample = {'image': image, 'label': label}
             sample = composed_transforms_ts(sample)
             image_a = sample['image'].unsqueeze(0)
-            if class_name == 'MySAMModel':
-                auxiliary_256, bian = self.auxiliary_model.auxiliary_model(image_a.to(self.device, dtype=torch.float32))
-            else:
-                auxiliary_256, bian = self.auxiliary_model(image_a.to(self.device, dtype=torch.float32))
+            auxiliary_256, bian = self.auxiliary_model(image_a.to(self.device, dtype=torch.float32))
             prob_pred = torch.sigmoid(auxiliary_256)
             prob_pred = F.interpolate(prob_pred, size=(h, w), mode='bilinear', align_corners=True)
             auxiliary_np = prob_pred.squeeze().detach().cpu().numpy() * 255
             auxiliary_np = auxiliary_np.astype(np.uint8)
-
-
-            if class_name == 'MySAMModel':
-                img = self.transform_image.apply_image(image_origin)  #
-                img = torch.as_tensor(img)  # torch tensor 变更
-                img = img.permute(2, 0, 1).contiguous()[None, :, :, :].squeeze(
-                    0)  # (高, 宽, 通道) -> (通道, 高, 宽) 变更后 设置添加None
-
-                img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
-                image_256 = F.interpolate(img.unsqueeze(0), size=(self.output_size, self.output_size), mode='bilinear',
-                                          align_corners=False)
-                image_256 = image_256.squeeze(0)
-                #####################################
-
-                mask_256 = self.preprocessMask(mask_np, self.transform_mask, self.output_size)
-                mask_256 = torch.as_tensor(mask_256).unsqueeze(0)
-
-                ##################################### 不能用 find_bboxes() 张量维度不一样
-
-                if (auxiliary_np > 0).sum() < 200:
-                    auxiliary_np = (np.ones(auxiliary_np.shape) * 255).astype(np.float32)
-
-                auxiliary_256 = self.preprocessMask(auxiliary_np, self.transform_mask, self.output_size)
-                auxiliary_1024 = self.preprocessMask(auxiliary_np, self.transform_image, self.img_size)
-
-                pt, point = self.fixed_click(np.array(auxiliary_1024))
-
-                y_indices, x_indices = np.where(auxiliary_1024 > 0)
-                if len(y_indices) == 0 or len(x_indices) == 0:
-                    x_min = y_min = 0
-                    x_max = y_max = self.img_size
-                else:
-                    x_min, x_max = np.min(x_indices), np.max(x_indices)
-                    y_min, y_max = np.min(y_indices), np.max(y_indices)
-                    x_min = max(0, x_min - random.randint(0, self.bbox_shift))
-                    x_max = min(self.img_size, x_max + random.randint(0, self.bbox_shift))
-                    y_min = max(0, y_min - random.randint(0, self.bbox_shift))
-                    y_max = min(self.img_size, y_max + random.randint(0, self.bbox_shift))
-
-                box_1024 = np.array([[x_min, y_min, x_max, y_max]])
-                box_1024 = box_1024.astype(np.int16)
-
-                #####################################
-                size = int(self.output_size * self.ratio)
-                transform_ratio = ResizeLongestSide(size)
-                auxiliary_ratio = self.preprocessMask(auxiliary_np, transform_ratio, size)
-
-                top = int(size * (self.ratio - 1) / 2)
-                bottom = top + self.output_size
-                left = int(size * (self.ratio - 1) / 2)
-                right = left + self.output_size
-                auxiliary_ratio_masks = auxiliary_ratio[top:bottom, left:right]
-
-                auxiliary_ratio_masks += auxiliary_256
-                auxiliary_ratio_masks = auxiliary_ratio_masks // 2 + auxiliary_ratio_masks % 2
-                prompt_masks1 = torch.where(auxiliary_ratio_masks > 0, 255.0, 0.0)
-                np_p = prompt_masks1.numpy()
-                gray_image_cv = cv2.cvtColor(np_p, cv2.COLOR_RGB2BGR)
-                smooth = cv2.medianBlur(gray_image_cv, 5)
-
-                imo = Image.fromarray(np.uint8(smooth)).convert('L')
-                auxiliary_ratio_masks1 = np.array(imo)
-                prompt_masks = torch.from_numpy(auxiliary_ratio_masks1).unsqueeze(0).to(torch.float32)
-                # prompt_masks = (auxiliary_ratio_masks * 255).to(torch.float32).unsqueeze(0)
-                #####################################
-                h, w = mask_np.shape[-2:]
-                size = np.array([w, h])
-                data = {
-                    'image': img.unsqueeze(0),
-                    'image_256': image_256.unsqueeze(0),
-                    'mask': mask_256.unsqueeze(0),
-                    "prompt_box": torch.tensor(box_1024),
-                    "prompt_masks": prompt_masks.unsqueeze(0),
-                    "image_path": image_path,
-                    "mask_path": mask_path,
-                    "size": size,
-                    "pt": torch.tensor(pt),
-                    "point": torch.tensor(point)
-                }
-                auxiliary_256, iou = self.auxiliary_model(data)
-
-                auxiliary_np = auxiliary_256.squeeze().detach().cpu().numpy() * 255
-                auxiliary_np = auxiliary_np.astype(np.uint8)
 
         return auxiliary_np

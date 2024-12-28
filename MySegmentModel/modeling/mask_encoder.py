@@ -207,7 +207,6 @@ class MaskEncoder(nn.Module):
                 dim_feedforward: int = 2048,
                 num_queries: int = 1,
                 mask_dim: int = 1024,
-                prompt_embed_dim: int = 256,
                 ):
         super().__init__()
 
@@ -218,7 +217,6 @@ class MaskEncoder(nn.Module):
         # define Transformer decoder here
         self.num_heads = num_heads
         self.depth = depth
-        self.prompt_embed_dim = prompt_embed_dim
 
         self.transformer_self_attention_layers = nn.ModuleList()
         self.transformer_cross_attention_layers = nn.ModuleList()
@@ -315,10 +313,7 @@ class MaskEncoder(nn.Module):
 
             outputs_mask, attn_mask = self.forward_prediction_heads(output, mask_features, size_list[(i + 1) % self.num_feature_levels])
 
-        # (bs, 256, 64, 64)
-        n, c, w, h = outputs_mask.shape
-        w = int(math.sqrt(c*w*h // self.prompt_embed_dim))
-        return outputs_mask.reshape(n, self.prompt_embed_dim, w, w)
+        return outputs_mask
 
     def forward_prediction_heads(self, output, mask_features, attn_mask_target_size):
         decoder_output = self.decoder_norm(output)
