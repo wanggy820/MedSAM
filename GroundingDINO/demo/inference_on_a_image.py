@@ -5,15 +5,13 @@ import sys
 import numpy as np
 import torch
 from PIL import Image, ImageDraw, ImageFont
-from huggingface_hub import hf_hub_download
 
-import GroundingDINO.groundingdino.datasets.transforms as T
-from BPAT_UNet.our_model.deform_attention_2 import default
-from GroundingDINO.groundingdino.models import build_model
-from GroundingDINO.groundingdino.util import box_ops
-from GroundingDINO.groundingdino.util.slconfig import SLConfig
-from GroundingDINO.groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
-from GroundingDINO.groundingdino.util.vl_utils import create_positive_map_from_span
+import groundingdino.datasets.transforms as T
+from groundingdino.models import build_model
+from groundingdino.util import box_ops
+from groundingdino.util.slconfig import SLConfig
+from groundingdino.util.utils import clean_state_dict, get_phrases_from_posmap
+from groundingdino.util.vl_utils import create_positive_map_from_span
 
 
 def plot_boxes_to_image(image_pil, tgt):
@@ -149,26 +147,20 @@ def get_grounding_output(model, image, caption, box_threshold, text_threshold=No
 
 
 if __name__ == "__main__":
-    config_file = "../groundingdino/config/GroundingDINO_SwinT_OGC.py"
-    ckpt_repo_id = "ShilongLiu/GroundingDINO"
-    ckpt_filenmae = "groundingdino_swint_ogc.pth"
-    cache_file = hf_hub_download(repo_id=ckpt_repo_id, filename=ckpt_filenmae)
 
     parser = argparse.ArgumentParser("Grounding DINO example", add_help=True)
-    parser.add_argument("--config_file", "-c", type=str, default=config_file, help="path to config file")
+    parser.add_argument("--config_file", "-c", type=str, required=True, help="path to config file")
     parser.add_argument(
-        "--checkpoint_path", "-p", type=str, default=cache_file, help="path to checkpoint file"
+        "--checkpoint_path", "-p", type=str, required=True, help="path to checkpoint file"
     )
+    parser.add_argument("--image_path", "-i", type=str, required=True, help="path to image file")
+    parser.add_argument("--text_prompt", "-t", type=str, required=True, help="text prompt")
     parser.add_argument(
-        "--image_path", "-i", type=str, default="../../datasets/Thyroid_Dataset/tn3k/test-image/0000.jpg", help="path to image file"
-    )
-    parser.add_argument("--text_prompt", "-t", type=str,default="甲狀腺超聲結節圖片",help="text prompt")
-    parser.add_argument(
-        "--output_dir", "-o", type=str, default="outputs", help="output directory"
+        "--output_dir", "-o", type=str, default="outputs", required=True, help="output directory"
     )
 
-    parser.add_argument("--box_threshold", type=float, default=0.2, help="box threshold")
-    parser.add_argument("--text_threshold", type=float, default=0.2, help="text threshold")
+    parser.add_argument("--box_threshold", type=float, default=0.3, help="box threshold")
+    parser.add_argument("--text_threshold", type=float, default=0.25, help="text threshold")
     parser.add_argument("--token_spans", type=str, default=None, help=
                         "The positions of start and end positions of phrases of interest. \
                         For example, a caption is 'a cat and a dog', \
@@ -176,7 +168,7 @@ if __name__ == "__main__":
                         if you would like to detect 'a cat', the token_spans should be '[[[0, 1], [2, 5]], ]', since 'a cat and a dog'[0:1] is 'a', and 'a cat and a dog'[2:5] is 'cat'. \
                         ")
 
-    parser.add_argument("--cpu-only", action="store_true", default=True,help="running on cpu only!, default=False")
+    parser.add_argument("--cpu-only", action="store_true", help="running on cpu only!, default=False")
     args = parser.parse_args()
 
     # cfg
@@ -207,7 +199,7 @@ if __name__ == "__main__":
 
     # run model
     boxes_filt, pred_phrases = get_grounding_output(
-        model, image, text_prompt, box_threshold, text_threshold, cpu_only=args.cpu_only, token_spans=eval(f"{token_spans}")
+        model, image, text_prompt, box_threshold, text_threshold, cpu_only=args.cpu_only, token_spans=eval(token_spans)
     )
 
     # visualize pred

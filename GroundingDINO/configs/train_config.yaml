@@ -1,0 +1,20 @@
+data:
+  train_dir: "../datasets/Thyroid_Dataset/tn3k/trainval-image"
+  train_ann: "../datasets/Thyroid_Dataset/tn3k/train_annotations.csv"
+  val_dir: "../datasets/Thyroid_Dataset/tn3k/test-image"
+  val_ann: "../datasets/Thyroid_Dataset/tn3k/test_annotations.csv"
+  batch_size: 4
+  num_workers: 0
+
+model:
+  config_path: "groundingdino/config/GroundingDINO_SwinT_OGC.py"
+  weights_path: "weights/groundingdino_swint_ogc.pth"
+
+training:
+  num_epochs: 200
+  learning_rate: 1e-3
+  save_dir: "weights"
+  save_frequency: 5
+  warmup_epochs: 5
+  use_lora: false
+  visualization_frequency: 5

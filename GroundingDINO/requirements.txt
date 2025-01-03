@@ -1,10 +1,14 @@
 torch
 torchvision
-transformers
+transformers==4.37.2
 addict
 yapf
 timm
 numpy
 opencv-python
-supervision>=0.22.0
+supervision==0.6.0
 pycocotools
+ema_pytorch
+scipy
+peft==0.13.2
+setuptools==65.5.1 

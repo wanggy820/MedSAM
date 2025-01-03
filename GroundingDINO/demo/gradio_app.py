@@ -7,7 +7,8 @@ from io import BytesIO
 from PIL import Image
 import numpy as np
 from pathlib import Path
-
+# from transformers import EncoderDecoderCache
+from transformers import BertConfig, EncoderDecoderConfig, EncoderDecoderModel
 
 import warnings
 
@@ -16,18 +17,18 @@ import torch
 # prepare the environment
 os.system("python ../setup.py build develop --user")
 os.system("pip install packaging==21.3")
-os.system("pip install gradio==3.50.2")
+os.system("pip install gradio")
 
 
 warnings.filterwarnings("ignore")
 
 import gradio as gr
 
-from GroundingDINO.groundingdino.models import build_model
-from GroundingDINO.groundingdino.util.slconfig import SLConfig
-from GroundingDINO.groundingdino.util.utils import clean_state_dict
-from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
-import GroundingDINO.groundingdino.datasets.transforms as T
+from groundingdino.models import build_model
+from groundingdino.util.slconfig import SLConfig
+from groundingdino.util.utils import clean_state_dict
+from groundingdino.util.inference import annotate, load_image, predict
+import groundingdino.datasets.transforms as T
 
 from huggingface_hub import hf_hub_download
 
@@ -98,7 +99,7 @@ if __name__ == "__main__":
 
         with gr.Row():
             with gr.Column():
-                input_image = gr.Image(source='upload', type="pil")
+                input_image = gr.Image(sources=['upload'], type="pil")
                 grounding_caption = gr.Textbox(label="Detection Prompt")
                 run_button = gr.Button(label="Run")
                 with gr.Accordion("Advanced options", open=False):

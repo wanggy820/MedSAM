@@ -22,9 +22,10 @@ import torch.nn.functional as F
 from torch import nn
 from torchvision.ops.boxes import nms
 from transformers import AutoTokenizer, BertModel, BertTokenizer, RobertaModel, RobertaTokenizerFast
+# from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
 
-from GroundingDINO.groundingdino.util import box_ops, get_tokenlizer
-from GroundingDINO.groundingdino.util.misc import (
+from groundingdino.util import box_ops, get_tokenlizer
+from groundingdino.util.misc import (
     NestedTensor,
     accuracy,
     get_world_size,
@@ -33,9 +34,9 @@ from GroundingDINO.groundingdino.util.misc import (
     is_dist_avail_and_initialized,
     nested_tensor_from_tensor_list,
 )
-from GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
-from GroundingDINO.groundingdino.util.visualizer import COCOVisualizer
-from GroundingDINO.groundingdino.util.vl_utils import create_positive_map_from_span
+from groundingdino.util.utils import get_phrases_from_posmap
+from groundingdino.util.visualizer import COCOVisualizer
+from groundingdino.util.vl_utils import create_positive_map_from_span
 
 from ..registry import MODULE_BUILD_FUNCS
 from .backbone import build_backbone
@@ -113,8 +114,7 @@ class GroundingDINO(nn.Module):
         self.feat_map = nn.Linear(self.bert.config.hidden_size, self.hidden_dim, bias=True)
         nn.init.constant_(self.feat_map.bias.data, 0)
         nn.init.xavier_uniform_(self.feat_map.weight.data)
-        # freeze
-
+        
         # special tokens
         self.specical_tokens = self.tokenizer.convert_tokens_to_ids(["[CLS]", "[SEP]", ".", "?"])
 
@@ -199,6 +199,7 @@ class GroundingDINO(nn.Module):
             self.refpoint_embed = None
 
         self._reset_parameters()
+    
 
     def _reset_parameters(self):
         # init input_proj
@@ -245,9 +246,7 @@ class GroundingDINO(nn.Module):
             captions = [t["caption"] for t in targets]
 
         # encoder texts
-        tokenized = self.tokenizer(captions, padding="longest", return_tensors="pt").to(
-            samples.device
-        )
+        tokenized = self.tokenizer(captions, padding="longest", return_tensors="pt").to(samples.device)
         (
             text_self_attention_masks,
             position_ids,
@@ -255,11 +254,11 @@ class GroundingDINO(nn.Module):
         ) = generate_masks_with_special_tokens_and_transfer_map(
             tokenized, self.specical_tokens, self.tokenizer
         )
+        #print(f"Tokaznied caption is {tokenized['input_ids']}")
+        #decoded=self.tokenizer.decode(tokenized['input_ids'].cpu().numpy().tolist()[0])
 
         if text_self_attention_masks.shape[1] > self.max_text_len:
-            text_self_attention_masks = text_self_attention_masks[
-                :, : self.max_text_len, : self.max_text_len
-            ]
+            text_self_attention_masks = text_self_attention_masks[:, : self.max_text_len, : self.max_text_len]
             position_ids = position_ids[:, : self.max_text_len]
             tokenized["input_ids"] = tokenized["input_ids"][:, : self.max_text_len]
             tokenized["attention_mask"] = tokenized["attention_mask"][:, : self.max_text_len]
@@ -348,6 +347,13 @@ class GroundingDINO(nn.Module):
         )
         out = {"pred_logits": outputs_class[-1], "pred_boxes": outputs_coord_list[-1]}
 
+        _, txt_len = text_dict['text_token_mask'].shape
+        ## Only valid text is the one given by tokenizer rest of it should be false for logits
+        out['text_mask'] = F.pad(text_dict['text_token_mask'],(0, self.max_text_len - txt_len),
+        mode='constant',
+        value=False)
+        out['tokenized']=tokenized
+
         # # for intermediate outputs
         # if self.aux_loss:
         #     out['aux_outputs'] = self._set_aux_loss(outputs_class, outputs_coord_list)
@@ -373,11 +379,11 @@ class GroundingDINO(nn.Module):
             {"pred_logits": a, "pred_boxes": b}
             for a, b in zip(outputs_class[:-1], outputs_coord[:-1])
         ]
-
+    
 
 @MODULE_BUILD_FUNCS.registe_with_name(module_name="groundingdino")
 def build_groundingdino(args):
-
+    # Image backbone
     backbone = build_backbone(args)
     transformer = build_transformer(args)
 
@@ -407,6 +413,5 @@ def build_groundingdino(args):
         sub_sentence_present=sub_sentence_present,
         max_text_len=args.max_text_len,
     )
-
     return model
 

@@ -86,7 +86,7 @@ def mean_iou(preds, labels, eps=1e-6):
     return ious, dice
 
 
-def getDatasets(dataset_name, root_dir, data_type, fold):
+def getDatasets(dataset_name, root_dir, data_type, fold=0):
     image_list = []
     mask_list = []
     auxiliary_list = []
