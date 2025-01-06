@@ -25,7 +25,7 @@ gamma = 0.1
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_name', type=str, default='Thyroid_tn3k', help='dataset name')
-    parser.add_argument('--batch_size', type=int, default=2, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch size')
     parser.add_argument('--warmup_steps', type=int, default=250, help='')
     parser.add_argument('--global_step', type=int, default=0, help=' ')
     parser.add_argument('--epochs', type=int, default=100, help='train epcoh')
@@ -130,9 +130,9 @@ def main(opt):
             train_miou_list = train_miou_list + train_true_iou.tolist()
             train_dice_list = train_dice_list + train_true_dice.tolist()
 
-            train_loss_one = (compute_loss(unet_pre, train_target_mask)*0.1 +
-                              compute_loss(mask_former, train_target_mask)*0.2 +
-                              compute_loss(low_res_pred, train_target_mask)*0.7)
+            train_loss_one = (compute_loss(unet_pre, train_target_mask) +
+                              compute_loss(mask_former, train_target_mask) +
+                              compute_loss(low_res_pred, train_target_mask))
             train_loss_one.backward()
 
             optimizer.step()
@@ -199,9 +199,9 @@ def main(opt):
                 val_miou_list = val_miou_list + val_true_iou.tolist()
                 val_dice_list = val_dice_list + val_true_dice.tolist()
 
-                val_loss_one = (compute_loss(unet_pre, val_target_mask) * 0.1 +
-                                  compute_loss(mask_former, val_target_mask) * 0.2 +
-                                  compute_loss(low_res_pred, val_target_mask) * 0.7)
+                val_loss_one = (compute_loss(unet_pre, val_target_mask) +
+                                  compute_loss(mask_former, val_target_mask) +
+                                  compute_loss(low_res_pred, val_target_mask))
 
                 _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, val_target_mask)
                 metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
