@@ -10,16 +10,16 @@ from torchvision.ops import box_iou
 import torch.nn.functional as F
 import bisect
 
-import groundingdino.datasets.transforms as T
-from groundingdino.models import build_model
-from groundingdino.util.misc import clean_state_dict
-from groundingdino.util.slconfig import SLConfig
-from groundingdino.util.utils import get_phrases_from_posmap
-from groundingdino.util.class_loss import FocalLoss
+import GroundingDINO.groundingdino.datasets.transforms as T
+from GroundingDINO.groundingdino.models import build_model
+from GroundingDINO.groundingdino.util.misc import clean_state_dict
+from GroundingDINO.groundingdino.util.slconfig import SLConfig
+from GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
+from GroundingDINO.groundingdino.util.class_loss import FocalLoss
 import os
-from groundingdino.util.box_ops import box_cxcywh_to_xyxy
-from config import ModelConfig
-from groundingdino.util.lora import add_lora_to_model
+from GroundingDINO.groundingdino.util.box_ops import box_cxcywh_to_xyxy
+from GroundingDINO.config import ModelConfig
+from GroundingDINO.groundingdino.util.lora import add_lora_to_model
 
 # ----------------------------------------------------------------------------------------------------------------------
 # OLD API
@@ -208,21 +208,22 @@ class GroundingDINOVisualizer:
                         scene=img_bgr,
                         detections=detections,
                         labels=phrases)
+                    cv2.imwrite(f"{save_dir}/val_pred_{idx}.jpg", img_bgr)
 
-                # Draw ground truth
-                if "boxes" in targets[0]:
-                    gt_xyxy = box_cxcywh_to_xyxy(targets[0]["boxes"]).cpu().numpy()
-                    gt_detections = sv.Detections(xyxy=gt_xyxy)
-                    img_bgr = self.gt_annotator.annotate(
-                        scene=img_bgr,
-                        detections=gt_detections
-                    )
-                    labels = targets[0].get("str_cls_lst", None)
-                    img_bgr = self.label_annotator.annotate(
-                        scene=img_bgr,
-                        detections=gt_detections,
-                        labels=labels)
-                cv2.imwrite(f"{save_dir}/val_pred_{idx}.jpg", img_bgr)
+                # # Draw ground truth
+                # if "boxes" in targets[0]:
+                #     gt_xyxy = box_cxcywh_to_xyxy(targets[0]["boxes"]).cpu().numpy()
+                #     gt_detections = sv.Detections(xyxy=gt_xyxy)
+                #     img_bgr = self.gt_annotator.annotate(
+                #         scene=img_bgr,
+                #         detections=gt_detections
+                #     )
+                #     labels = targets[0].get("str_cls_lst", None)
+                #     img_bgr = self.label_annotator.annotate(
+                #         scene=img_bgr,
+                #         detections=gt_detections,
+                #         labels=labels)
+                # cv2.imwrite(f"{save_dir}/val_pred_{idx}.jpg", img_bgr)
                 if idx >= self.visualize_frequency:
                     break
 
@@ -267,12 +268,17 @@ class GroundingDINOVisualizer:
                 detections = sv.Detections(xyxy=xyxy)
                 img_bgr = self.pred_annotator.annotate(
                     scene=img_bgr,
+                    detections=detections
+                )
+
+                img_bgr = self.label_annotator.annotate(
+                    scene=img_bgr,
                     detections=detections,
                     labels=phrases
                 )
-                cv2.imwrite(f"{save_dir}/{fname}.jpg", img_bgr)
+                cv2.imwrite(f"{save_dir}/{fname}", img_bgr)
             else:
-                print(f"No boxes found for the image above given thresholds!")
+                print(f"fname:{fname},No boxes found for the image above given thresholds!")
 
 
 

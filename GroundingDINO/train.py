@@ -317,7 +317,7 @@ def train(config_path: str, save_dir: Optional[str] = None) -> None:
             for k, v in losses.items():
                 epoch_losses[k].append(v)
             
-            if batch_idx % 5 == 0:
+            if batch_idx % 50 == 0:
                 loss_str = ", ".join(f"{k}: {v:.4f}" for k, v in losses.items())
                 print(f"Epoch {epoch+1}/{training_config.num_epochs}, "
                       f"Batch {batch_idx}/{len(train_loader)}, {loss_str}")

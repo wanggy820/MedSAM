@@ -15,20 +15,20 @@ import warnings
 import torch
 
 # prepare the environment
-os.system("python ../setup.py build develop --user")
-os.system("pip install packaging==21.3")
-os.system("pip install gradio")
+# os.system("python ../setup.py build develop --user")
+# os.system("pip install packaging==21.3")
+# os.system("pip install gradio")
 
 
 warnings.filterwarnings("ignore")
 
 import gradio as gr
 
-from groundingdino.models import build_model
-from groundingdino.util.slconfig import SLConfig
-from groundingdino.util.utils import clean_state_dict
-from groundingdino.util.inference import annotate, load_image, predict
-import groundingdino.datasets.transforms as T
+from GroundingDINO.groundingdino.models import build_model
+from GroundingDINO.groundingdino.util.slconfig import SLConfig
+from GroundingDINO.groundingdino.util.utils import clean_state_dict
+from GroundingDINO.groundingdino.util.inference import annotate, load_image, predict
+import GroundingDINO.groundingdino.datasets.transforms as T
 
 from huggingface_hub import hf_hub_download
 

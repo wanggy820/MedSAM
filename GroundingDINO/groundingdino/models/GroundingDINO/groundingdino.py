@@ -24,8 +24,8 @@ from torchvision.ops.boxes import nms
 from transformers import AutoTokenizer, BertModel, BertTokenizer, RobertaModel, RobertaTokenizerFast
 # from peft import LoraConfig, get_peft_model, get_peft_model_state_dict
 
-from groundingdino.util import box_ops, get_tokenlizer
-from groundingdino.util.misc import (
+from GroundingDINO.groundingdino.util import box_ops, get_tokenlizer
+from GroundingDINO.groundingdino.util.misc import (
     NestedTensor,
     accuracy,
     get_world_size,
@@ -34,9 +34,9 @@ from groundingdino.util.misc import (
     is_dist_avail_and_initialized,
     nested_tensor_from_tensor_list,
 )
-from groundingdino.util.utils import get_phrases_from_posmap
-from groundingdino.util.visualizer import COCOVisualizer
-from groundingdino.util.vl_utils import create_positive_map_from_span
+from GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
+from GroundingDINO.groundingdino.util.visualizer import COCOVisualizer
+from GroundingDINO.groundingdino.util.vl_utils import create_positive_map_from_span
 
 from ..registry import MODULE_BUILD_FUNCS
 from .backbone import build_backbone
