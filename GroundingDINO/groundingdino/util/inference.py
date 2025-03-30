@@ -12,6 +12,7 @@ import bisect
 
 import GroundingDINO.groundingdino.datasets.transforms as T
 from GroundingDINO.groundingdino.models import build_model
+from GroundingDINO.groundingdino.util.mean_average_precision import mean_average_precision
 from GroundingDINO.groundingdino.util.misc import clean_state_dict
 from GroundingDINO.groundingdino.util.slconfig import SLConfig
 from GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
@@ -228,11 +229,12 @@ class GroundingDINOVisualizer:
                     break
 
 
-    def visualize_image(self, model, image, caption,image_source,fname,device="cuda", box_th=0.3,txt_th=0.2):
+    def visualize_image(self, model, image, caption,image_source,fname, true_boxes, device="cuda", box_th=0.3,txt_th=0.2):
         model.eval()
         save_dir = os.path.join(self.save_dir, f'inference')
         os.makedirs(save_dir, exist_ok=True)
 
+        mAP = 0
         with torch.no_grad():          
             caption = preprocess_caption(caption=caption)
             model = model.to(device)
@@ -260,11 +262,13 @@ class GroundingDINOVisualizer:
             tokenized = outputs['tokenized']
             phrases = self.extract_phrases(filtered_logits, tokenized, model.tokenizer,text_threshold=txt_th)
 
+            if len(filtered_boxes) > 1:
+                print("--------------")
             # Draw predictions
-            if len(filtered_boxes):
+            if len(filtered_boxes):  # 109, 66, 79, 69
                 boxes = filtered_boxes * torch.tensor([w, h, w, h])
                 xyxy = box_cxcywh_to_xyxy(boxes).numpy()
-                
+                mAP = mean_average_precision(xyxy, true_boxes)
                 detections = sv.Detections(xyxy=xyxy)
                 img_bgr = self.pred_annotator.annotate(
                     scene=img_bgr,
@@ -279,6 +283,7 @@ class GroundingDINOVisualizer:
                 cv2.imwrite(f"{save_dir}/{fname}", img_bgr)
             else:
                 print(f"fname:{fname},No boxes found for the image above given thresholds!")
+            return mAP
 
 
 

@@ -7,7 +7,7 @@ data:
   val_ann: "../datasets/Thyroid_Dataset/tn3k/test_annotations.csv"
 model:
   config_path: groundingdino/config/GroundingDINO_SwinT_OGC.py
-  lora_weights: weights/20250105_1818/checkpoint_epoch_10.pth
+  lora_weights: weights/checkpoint_epoch_45.pth
   weights_path: weights/groundingdino_swint_ogc.pth
 training:
   learning_rate: 0.0001

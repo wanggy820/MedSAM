@@ -7,6 +7,8 @@ from scipy.spatial.distance import directed_hausdorff
 from scipy.ndimage import morphology
 from sklearn.metrics import roc_curve, auc
 
+from BPAT_UNet.dataloaders.utils import get_dice
+
 
 class HausdorffDistance:
     def hd_distance(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -90,12 +92,12 @@ def evaluate(pred, gt):
 
     # DICE
     DICE = 2 * IoU / (IoU + 1)
-
+    DSC = get_dice(pred, gt)
     # roc
     fpr, tpr, threshold = roc_curve(gt_binary.cpu().numpy().flatten(), pred_binary.cpu().numpy().flatten())
     auc_roc = auc(fpr, tpr)
     hd = hd_metric.compute(pred, gt)
-    return Precision, Recall, Specificity, F1, auc_roc, accuracy, IoU, DICE, MAE, hd
+    return Precision, Recall, Specificity, F1, auc_roc, accuracy, IoU, DICE, MAE, hd, DSC
 
 
 class Metrics(object):

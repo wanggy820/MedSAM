@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from model.ResNet101 import ResNet50
+from TRFE_Net.model.ResNet101 import ResNet50
 
 
 class Classifier(nn.Module):

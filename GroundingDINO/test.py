@@ -1,3 +1,5 @@
+import cv2
+
 from groundingdino.util.inference import load_model, load_image, predict, annotate
 import torch
 import torchvision.ops as ops
@@ -37,11 +39,26 @@ def process_images(
 ):
     visualizer = GroundingDINOVisualizer(save_dir="visualizations")
 
+    total_iou = 0
     for img in os.listdir(data_config.val_dir):
         image_path=os.path.join(data_config.val_dir,img)
         image_source, image = load_image(image_path)
-        visualizer.visualize_image(model,image,text_prompt,image_source,img,box_th=box_threshold,txt_th=text_threshold)
 
+        mask_path = os.path.join("../datasets/Thyroid_Dataset/tn3k/test-mask", img)
+        mask_source, mask = load_image(mask_path)
+        gray = cv2.cvtColor(mask_source, cv2.COLOR_BGR2GRAY)
+        # 二值化处理
+        _, mask1 = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        # 寻找轮廓
+        contours, _ = cv2.findContours(mask1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        true_boxes = []
+        for contour in contours:
+            bx, by, bw, bh = cv2.boundingRect(contour)
+            true_boxes.append([bx, by, bw+bx, bh+by])
+        mAP = visualizer.visualize_image(model,image,text_prompt,image_source,img,  true_boxes, box_th=box_threshold,txt_th=text_threshold)
+
+        print(f"img:{img}, {mAP}")
+        total_iou += mAP
         #boxes, logits, phrases = predict(
         #    model=model,
         #    image=image,
@@ -55,7 +72,8 @@ def process_images(
         #    print(f"NMS boxes size {boxes.shape}")
         #annotated_frame = annotate(image_source=image_source, boxes=boxes, logits=logits, phrases=phrases)
         #cv2.imwrite(f"vis_Dataset/{img}", annotated_frame)
-
+    print(f"mean_average_precision:{total_iou/len(os.listdir(data_config.val_dir))}")
+    # 0.679095447080131
 
 if __name__ == "__main__":
     # Config file of the prediction, the model weights can be complete model weights but if use_lora is true then lora_wights should also be present see example

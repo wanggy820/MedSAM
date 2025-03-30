@@ -63,7 +63,7 @@ def get_arguments():
 
     ## Train settings
     parser.add_argument('-dataset', type=str, default='TN3K')  # TN3K, TG3K, TATN
-    parser.add_argument('-fold', type=str, default=4)
+    parser.add_argument('-fold', type=str, default=0)
     parser.add_argument('-batch_size', type=int, default=16)
     parser.add_argument('-nepochs', type=int, default=100)
     parser.add_argument('-resume_epoch', type=int, default=0)

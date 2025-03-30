@@ -162,7 +162,7 @@ class ResNet(nn.Module):
             self.load_state_dict(state_dict)
             print("successfully load the gn weights")
         else:
-            pretrain_dict = torch.load('/home/liguanbin/.cache/torch/hub/checkpoints/resnet50-19c8e357.pth')
+            pretrain_dict = torch.load('C:/Users/wangg/Downloads/resnet50-19c8e357.pth')
             model_dict = {}
             state_dict = self.state_dict()
             for k, v in pretrain_dict.items():            

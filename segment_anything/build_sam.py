@@ -139,8 +139,8 @@ def _build_sam(
             )
             print(checkpoint.name, " is downloaded!")
 
-    if checkpoint is not None:
-        with open(checkpoint, "rb") as f:
-            state_dict = torch.load(f, map_location=torch.device('cpu'))
-        sam.load_state_dict(state_dict)
+    # if checkpoint is not None:
+    #     with open(checkpoint, "rb") as f:
+    #         state_dict = torch.load(f, map_location=torch.device('cpu'))
+    #     sam.load_state_dict(state_dict)
     return sam

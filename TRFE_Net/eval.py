@@ -16,6 +16,7 @@ from dataloaders import custom_transforms as trforms
 # Dataloaders includes
 from dataloaders import tn3k, ddti
 from dataloaders import utils
+from utils.data_convert import mean_iou
 # Custom includes
 from visualization.metrics import Metrics, evaluate
 from model.deeplab_v3_plus import Deeplabv3plus
@@ -31,6 +32,7 @@ from model.transunet.vit_seg_modeling import VisionTransformer as ViT_seg
 from model.transunet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 from model.cpfnet import CPFNet
 from model.sgunet import SGUNet
+import logging
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
@@ -42,12 +44,12 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpu', type=str, default='0')
     parser.add_argument('-model_name', type=str,
-                        default='trfeplus')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
+                        default='cpfnet')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
     parser.add_argument('-output_stride', type=int, default=16)
     parser.add_argument('-save_dir', type=str, default='./results')
-    parser.add_argument('-test_dataset', type=str, default='DDTI')
+    parser.add_argument('-test_dataset', type=str, default='TN3K')
     parser.add_argument('-test_fold', type=str, default='test')
     parser.add_argument('-fold', type=int, default=0)
     ## for transunet
@@ -101,6 +103,7 @@ def main(args):
     else:
         raise NotImplementedError
     load_path = f"./run/{args.model_name}/fold{args.fold}/{args.model_name}_best.pth"
+    logging.basicConfig(filename=f'./run/{args.model_name}/fold{args.fold}/val.log', filemode="w", level=logging.DEBUG)
     net.load_state_dict(torch.load(load_path, map_location=device))
     net.to(device=device)
 
@@ -125,13 +128,17 @@ def main(args):
     net.eval()
     with torch.no_grad():
         all_start = time.time()
-        metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
+        metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd', 'DSC'])
         total_iou = 0
         total_cost_time = 0
+
+        interaction_total_dice = 0
+        interaction_total_iou = 0
+        index = 0
         for sample_batched in tqdm(testloader):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
-
+            logging.info("image_path:{}".format(label_name))
             labels = labels.to(device=device)
             inputs = inputs.to(device=device)
             if 'trfe' in args.model_name or 'mtnet' in args.model_name:
@@ -154,13 +161,23 @@ def main(args):
                 cost_time = time.time() - start
             prob_pred = torch.sigmoid(nodule_pred)
             iou = utils.get_iou(prob_pred, labels)
-            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(prob_pred, labels)
+            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd, _DSC = evaluate(prob_pred, labels)
             metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
-                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
+                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc, DSC=_DSC)
 
             total_iou += iou
             total_cost_time += cost_time
 
+            iou1, dice1 = mean_iou(prob_pred, labels, eps=1e-6)
+            iou1 = iou1.item()
+            dice1 = dice1.item()
+            interaction_total_dice += dice1
+            interaction_total_iou += iou1
+            logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
+                         .format(iou1, dice1))
+            logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
+                         .format(interaction_total_iou / (index + 1), interaction_total_dice / (index + 1)))
+            index = index + 1
             shape = (size[0, 0], size[0, 1])
             prob_pred = F.interpolate(prob_pred, size=shape, mode='bilinear', align_corners=True).cpu().data
             save_data = prob_pred[0]
@@ -183,11 +200,11 @@ def main(args):
     print(args.model_name)
     metrics_result = metrics.mean(len(testloader))
     print("Test Result:")
-    print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f'
+    print('recall: %.4f, specificity: %.4f, precision: %.4f, F1_score:%.4f, acc: %.4f, iou: %.4f, mae: %.4f, dice: %.4f, hd: %.4f, auc: %.4f, DSC: %.4f'
         % (metrics_result['recall'], metrics_result['specificity'], metrics_result['precision'],
            metrics_result['F1_score'],
            metrics_result['acc'], metrics_result['iou'], metrics_result['mae'], metrics_result['dice'],
-           metrics_result['hd'], metrics_result['auc']))
+           metrics_result['hd'], metrics_result['auc'], metrics_result['DSC']))
     print("total_cost_time:", total_cost_time)
     print("loop_cost_time:", time.time() - all_start)
     evaluation_dir = os.path.sep.join([args.save_dir, 'metrics', args.test_fold + '-' + args.test_dataset + '/'])

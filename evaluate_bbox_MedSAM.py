@@ -7,6 +7,7 @@ from PIL import Image
 
 from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
 from MySAMModel import MySAMModel
+from TRFE_Net.model.unet import Unet
 from segment_anything import sam_model_registry
 import logging
 from utils.data_convert import mean_iou, build_dataloader
@@ -29,7 +30,9 @@ def get_argparser():
     parser.add_argument('--vit_type', type=str, default='vit_h', help='sam vit type')
     parser.add_argument('--ratio', type=float, default=1.0, help='ratio')
     parser.add_argument('--fold', type=int, default=0)
-    parser.add_argument('-auxiliary_model', type=str, default='BPATUNet')
+    # parser.add_argument('-auxiliary_model', type=str, default='BPATUNet')
+    # parser.add_argument('-auxiliary_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
+    parser.add_argument('-auxiliary_model', type=str, default='UNet')
     parser.add_argument('-auxiliary_model_path', type=str, default='./BPAT_UNet/BPAT-UNet_best.pth')
     return parser
 

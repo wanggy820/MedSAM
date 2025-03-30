@@ -10,12 +10,12 @@ from torchvision.ops import box_iou, generalized_box_iou ,sigmoid_focal_loss
 import torch.nn.functional as F
 import bisect
 
-import groundingdino.datasets.transforms as T
-from groundingdino.models import build_model
-from groundingdino.util.misc import clean_state_dict
-from groundingdino.util.slconfig import SLConfig
-from groundingdino.util.utils import get_phrases_from_posmap
-from groundingdino.util.lora import add_lora_to_model
+import GroundingDINO.groundingdino.datasets.transforms as T
+from GroundingDINO.groundingdino.models import build_model
+from GroundingDINO.groundingdino.util.misc import clean_state_dict
+from GroundingDINO.groundingdino.util.slconfig import SLConfig
+from GroundingDINO.groundingdino.util.utils import get_phrases_from_posmap
+from GroundingDINO.groundingdino.util.lora import add_lora_to_model
 
 # ----------------------------------------------------------------------------------------------------------------------
 # OLD API

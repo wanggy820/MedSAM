@@ -19,6 +19,20 @@ from dataloaders import utils
 # Custom includes
 from visualization.metrics import Metrics, evaluate
 from our_model.BPATUNet_all import BPATUNet
+from GroundingDINO.groundingdino.util.mean_average_precision import mean_average_precision
+def get_boxes(path):
+    image = cv2.imread(path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # 二值化处理
+    _, mask1 = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    # 寻找轮廓
+    contours, _ = cv2.findContours(mask1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    true_boxes = []
+    for contour in contours:
+        bx, by, bw, bh = cv2.boundingRect(contour)
+        true_boxes.append([bx, by, bw + bx, bh + by])
+    return true_boxes
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -71,6 +85,7 @@ def main(args):
         os.makedirs(save_dir)
     net.cuda()
     net.eval()
+    total_iou111 = 0
     with torch.no_grad():
         all_start = time.time()
         metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score'
@@ -134,12 +149,21 @@ def main(args):
             # cv2.imwrite(save_path_s, save_saliency)
             cv2.imwrite(save_dir + label_name[0], save_png)
 
+            pre_boxes = get_boxes(save_dir + label_name[0])
+            mask_path = os.path.join("../datasets/Thyroid_Dataset/tn3k/test-mask", label_name[0])
+
+            true_boxes = get_boxes(mask_path)
+            mAP = mean_average_precision(pre_boxes, true_boxes)
+            # print(f"img:{label_name[0]}, {mAP}")
+            total_iou111 += mAP
+
             logging.info("interaction iou:{:3.6f}, interaction dice:{:3.6f}"
                          .format(iou, _dice.item()))
             logging.info("interaction mean iou:{:3.6f},interaction mean dice:{:3.6f}"
                          .format(total_iou / (index + 1), total_dice / (index + 1)))
             index = index + 1
 
+    print(f"mean_average_precision:{total_iou111 / len(testloader)}") #0.690608095495995
     print(args.model_name)
     metrics_result = metrics.mean(len(testloader))
     DSC_new = (2 * metrics_result['iou']) / (1 + metrics_result['iou'])

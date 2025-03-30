@@ -81,8 +81,8 @@ def build_model(checkout=None) -> MySegmentModel:
     image_embedding_size = image_size // vit_patch_size
 
     backbone = Unet(3, 1)
-    state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu", weights_only=False)
-    backbone.load_state_dict(state_dict)
+    # state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu", weights_only=False)
+    # backbone.load_state_dict(state_dict)
     pixel_encoder = PixelEncoder(img_size=image_size, patch_size=vit_patch_size, embed_dim=pixel_encoder_embed_dim)
     mask_encoder = MaskEncoder(depth=mask_encoder_depth)
 
