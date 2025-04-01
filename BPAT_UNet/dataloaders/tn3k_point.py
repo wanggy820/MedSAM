@@ -37,7 +37,7 @@ def make_testset(root):
 class TN3K(data.Dataset):
     def __init__(self, mode, transform=None, return_size=False, fold=0):
         self.mode = mode
-        root = '/home/jiang/ccj_dl/code/TRFE-Net_ori/data/tn3k_dian_2/'
+        root = '../datasets/Thyroid_Dataset/tn3k/'
         trainval = json.load(open(root + 'tn3k-trainval-fold'+str(fold)+'.json', 'r'))
         if mode == 'train':
             imgs = make_dataset(root, trainval['train'], 'trainval')

@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
+from BPAT_UNet.dataloaders import tg3k, tg3k_point
 from dataloaders import custom_transforms as trforms
 # Dataloaders includes
 from dataloaders import tn3k
@@ -44,7 +45,7 @@ def get_arguments():
     parser.add_argument('-output_stride', type=int, default=16)
     parser.add_argument('-load_path', type=str, default='./BPAT-UNet_best.pth')
     parser.add_argument('-save_dir', type=str, default='./results')
-    parser.add_argument('-test_dataset', type=str, default='TN3K')
+    parser.add_argument('-test_dataset', type=str, default='TG3K_point')
     parser.add_argument('-test_fold', type=str, default='test')
     parser.add_argument('-fold', type=int, default=0)
     ## for transunet
@@ -74,6 +75,8 @@ def main(args):
 
     if args.test_dataset == 'TN3K':
         test_data = tn3k.TN3K(mode='test', transform=composed_transforms_ts, return_size=True)
+    elif args.test_dataset == 'TG3K_point':
+        test_data = tg3k_point.TG3K_point(mode='val', transform=composed_transforms_ts, return_size=True)
 
     save_dir = args.save_dir + os.sep + args.test_fold + '-' + args.test_dataset + os.sep + args.model_name + os.sep + 'fold' + str(
         args.fold) + os.sep
@@ -150,7 +153,7 @@ def main(args):
             cv2.imwrite(save_dir + label_name[0], save_png)
 
             pre_boxes = get_boxes(save_dir + label_name[0])
-            mask_path = os.path.join("../datasets/Thyroid_Dataset/tn3k/test-mask", label_name[0])
+            mask_path = os.path.join("../datasets/Thyroid_Dataset/tg3k/thyroid-mask", label_name[0])
 
             true_boxes = get_boxes(mask_path)
             mAP = mean_average_precision(pre_boxes, true_boxes)

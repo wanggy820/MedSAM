@@ -60,7 +60,7 @@ def main():
     sam = sam_model_registry[opt.vit_type](checkpoint="../work_dir/SAM/sam_vit_b_01ec64.pth").to(device)
     dataloaders = build_dataloader(sam, auxiliary_model, opt.dataset_name, opt.data_dir, opt.batch_size, opt.num_workers, opt.ratio, opt.fold)
     with torch.no_grad():
-        metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd'])
+        metrics = Metrics(['precision', 'recall', 'specificity', 'F1_score', 'auc', 'acc', 'iou', 'dice', 'mae', 'hd', 'DSC'])
         # --------- 4. inference for each image ---------
         interaction_total_dice = 0
         interaction_total_iou = 0
@@ -75,9 +75,9 @@ def main():
             size = data["size"]
             unet_pre, mask_former, low_res_pred = model(data)
 
-            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd = evaluate(low_res_pred, mask)
+            _precision, _recall, _specificity, _f1, _auc, _acc, _iou, _dice, _mae, _hd, _DSC = evaluate(low_res_pred, mask)
             metrics.update(recall=_recall, specificity=_specificity, precision=_precision,
-                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc)
+                           F1_score=_f1, acc=_acc, iou=_iou, mae=_mae, dice=_dice, hd=_hd, auc=_auc, DSC=_DSC)
             # res_pre = low_res_pred * 255
             iou, dice = mean_iou(low_res_pred, mask, eps=1e-6)
             iou = iou.item()

@@ -12,9 +12,11 @@ import torch.optim.lr_scheduler as lr_scheduler
 import torch
 import torch.optim as optim
 # Tensorboard include
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torchvision import transforms
+
+from BPAT_UNet.dataloaders import tg3k_point
 # Dataloaders includes
 from dataloaders import tn3k, tg3k, tatn, tn3k_point
 from dataloaders import custom_transforms_2 as trforms
@@ -64,11 +66,11 @@ def get_arguments():
     parser.add_argument('-output_stride', type=int, default=16)
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TN3K_point')  # TN3K, TG3K, TATN
+    parser.add_argument('-dataset', type=str, default='TG3K')  # TN3K, TG3K, TATN
     parser.add_argument('-fold', type=str, default='0')
     parser.add_argument('-batch_size', type=int, default=16)
     parser.add_argument('-nepochs', type=int, default=150)
-    parser.add_argument('-resume_epoch', type=int, default=0)
+    parser.add_argument('-resume_epoch', type=int, default=49)
 
     ## Optimizer settings
     parser.add_argument('-naver_grad', type=str, default=1)
@@ -176,6 +178,9 @@ def main(args):
     elif args.dataset == 'TN3K_point':
         train_data = tn3k_point.TN3K(mode='train', transform=composed_transforms_tr, fold=args.fold)
         val_data = tn3k_point.TN3K(mode='val', transform=composed_transforms_ts, fold=args.fold)
+    elif args.dataset == 'TG3K':
+        train_data = tg3k_point.TG3K_point(mode='train', transform=composed_transforms_tr)
+        val_data = tg3k_point.TG3K_point(mode='val', transform=composed_transforms_ts)
 
     trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0)
     testloader = DataLoader(val_data, batch_size=1, shuffle=False, num_workers=0)

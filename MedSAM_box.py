@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.nn import functional as F
 
+from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
 from BPAT_UNet.visualization.metrics import evaluate
 from TRFE_Net.model.trfeplus import TRFEPLUS
 from segment_anything.utils.transforms import ResizeLongestSide
@@ -51,12 +52,17 @@ class MedSAMBox(Dataset):
         self.ratio = ratio
         self.data_type = data_type
 
-        model_name = "trfeplus"
-        self.trfe = TRFEPLUS(in_ch=3, out_ch=1)
-        load_path = f"../TRFE_Net/run/{model_name}/fold0/{model_name}_best.pth"
-        self.trfe.load_state_dict(torch.load(load_path, map_location=self.device))
-        self.trfe.to(device=self.device)
-        self.trfe.eval()
+        model_name = "BPAT_UNet"
+        if model_name == "trfeplus":
+            load_path = f"../TRFE_Net/run/{model_name}/fold0/{model_name}_best.pth"
+            self.net = TRFEPLUS(in_ch=3, out_ch=1)
+        else:
+            load_path = f"../BPAT_UNet/BPAT-UNet_best.pth"
+            self.net = BPATUNet(n_classes=1)
+
+        self.net.load_state_dict(torch.load(load_path, map_location=self.device))
+        self.net.to(device=self.device)
+        self.net.eval()
 
     def __len__(self):
         return len(self.image_list)
@@ -225,14 +231,14 @@ class MedSAMBox(Dataset):
             image_a = sample['image'].unsqueeze(0)
             auxiliary_256, bian = self.auxiliary_model(image_a.to(self.device, dtype=torch.float32))
 
-            nodule_pred, gland_pred, _ = self.trfe.forward(image_a.to(self.device, dtype=torch.float32))
-            prob_pred1 = torch.sigmoid(nodule_pred)
-            prob_pred1 = torch.where(prob_pred1 >= 0.5, 1.0, 0)
+            # nodule_pred, gland_pred, _ = self.trfe.forward(image_a.to(self.device, dtype=torch.float32))
+            # prob_pred1 = torch.sigmoid(nodule_pred)
+            # prob_pred1 = torch.where(prob_pred1 >= 0.5, 1.0, 0)
 
             prob_pred = torch.sigmoid(auxiliary_256)
             prob_pred = torch.where(prob_pred >= 0.5, 1.0, 0)
-            prob_pred = prob_pred + prob_pred1
-            prob_pred = torch.where(prob_pred > 1, 1.0, prob_pred)
+            # prob_pred = prob_pred + prob_pred1
+            # prob_pred = torch.where(prob_pred > 1, 1.0, prob_pred)
             prob_pred = F.interpolate(prob_pred, size=(h, w), mode='bilinear', align_corners=True)
             auxiliary_np = prob_pred.squeeze().detach().cpu().numpy() * 255
             auxiliary_np = auxiliary_np.astype(np.uint8)
