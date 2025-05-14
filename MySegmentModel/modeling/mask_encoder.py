@@ -198,7 +198,7 @@ def _get_activation_fn(activation):
         return F.glu
     raise RuntimeError(F"activation should be relu/gelu, not {activation}.")
 
-class MaskEncoder(nn.Module):
+class MaskTransformer(nn.Module):
     def __init__(self,
                 hidden_dim: int = 256,
                 depth: int = 4,

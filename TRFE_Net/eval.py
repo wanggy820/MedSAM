@@ -44,7 +44,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpu', type=str, default='0')
     parser.add_argument('-model_name', type=str,
-                        default='cpfnet')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
+                        default='deeplab-resnet50')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
     parser.add_argument('-output_stride', type=int, default=16)

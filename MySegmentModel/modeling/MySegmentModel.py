@@ -3,7 +3,7 @@ import os
 
 import torch
 from torch import nn
-from .mask_encoder import MaskEncoder
+from .mask_encoder import MaskTransformer
 from .pixel_encoder import PixelEncoder
 from segment_anything.modeling.prompt_encoder import PromptEncoder
 from segment_anything.modeling.mask_decoder import MaskDecoder
@@ -17,7 +17,7 @@ class MySegmentModel(nn.Module):
     def __init__(self,
                  backbone: Unet,
                  pixel_encoder: PixelEncoder,
-                 mask_encoder: MaskEncoder,
+                 mask_encoder: MaskTransformer,
                  prompt_encoder: PromptEncoder,
                  mask_decoder: MaskDecoder,
                  ) -> None:
@@ -34,10 +34,17 @@ class MySegmentModel(nn.Module):
         self.register_buffer("pixel_mean", torch.Tensor(pixel_mean).view(-1, 1, 1), False)
         self.register_buffer("pixel_std", torch.Tensor(pixel_std).view(-1, 1, 1), False)
 
+        self.data = None
     @property
     def device(self) -> Any:
         return self.pixel_mean.device
+
+
+
     def forward(self, data):
+        if not isinstance(data, dict):
+            data = self.data
+        self.data = data
         image = data['image_256'].to(self.device)
         prompt_box = data["prompt_box"].to(self.device)
         prompt_masks = data["prompt_masks"].to(self.device)
@@ -84,7 +91,7 @@ def build_model(checkout=None) -> MySegmentModel:
     # state_dict = torch.load("../save_models/Thyroid_tn3k_fold0_unet/vit_b_1.00/sam_best.pth", map_location="cpu", weights_only=False)
     # backbone.load_state_dict(state_dict)
     pixel_encoder = PixelEncoder(img_size=image_size, patch_size=vit_patch_size, embed_dim=pixel_encoder_embed_dim)
-    mask_encoder = MaskEncoder(depth=mask_encoder_depth)
+    mask_transformer = MaskTransformer(depth=mask_encoder_depth)
 
     prompt_encoder = PromptEncoder(
         embed_dim=prompt_embed_dim,
@@ -105,7 +112,7 @@ def build_model(checkout=None) -> MySegmentModel:
         iou_head_hidden_dim=256,
     )
 
-    model = MySegmentModel(backbone, pixel_encoder, mask_encoder, prompt_encoder, mask_decoder)
+    model = MySegmentModel(backbone, pixel_encoder, mask_transformer, prompt_encoder, mask_decoder)
     if checkout is not None and os.path.exists(checkout):
         model.load_state_dict(torch.load(checkout, map_location="cpu", weights_only=False))
     return model

@@ -51,12 +51,12 @@ class MedSAMBox(Dataset):
         self.ratio = ratio
         self.data_type = data_type
 
-        model_name = "trfeplus"
-        self.trfe = TRFEPLUS(in_ch=3, out_ch=1)
-        load_path = f"../TRFE_Net/run/{model_name}/fold0/{model_name}_best.pth"
-        self.trfe.load_state_dict(torch.load(load_path, map_location=self.device))
-        self.trfe.to(device=self.device)
-        self.trfe.eval()
+        # model_name = "trfeplus"
+        # self.trfe = TRFEPLUS(in_ch=3, out_ch=1)
+        # load_path = f"./TRFE_Net/run/{model_name}/fold0/{model_name}_best.pth"
+        # self.trfe.load_state_dict(torch.load(load_path, map_location=self.device))
+        # self.trfe.to(device=self.device)
+        # self.trfe.eval()
 
     def __len__(self):
         return len(self.image_list)
@@ -111,11 +111,10 @@ class MedSAMBox(Dataset):
         img = torch.as_tensor(img)  # torch tensor 变更
         img = img.permute(2, 0, 1).contiguous()[None, :, :, :].squeeze(0)  # (高, 宽, 通道) -> (通道, 高, 宽) 变更后 设置添加None
 
-        save_image(img.float(), 'output_image.png')
 
 
         img = self.preprocess(img.to(device=self.device))  # img nomalize or padding
-        save_image(img.float(), 'output_image1.png')
+
         # if self.data_type == 'train':
         #     min1 = img.min()
         #     max1 = img.max()
@@ -225,14 +224,13 @@ class MedSAMBox(Dataset):
             image_a = sample['image'].unsqueeze(0)
             auxiliary_256, bian = self.auxiliary_model(image_a.to(self.device, dtype=torch.float32))
 
-            nodule_pred, gland_pred, _ = self.trfe.forward(image_a.to(self.device, dtype=torch.float32))
-            prob_pred1 = torch.sigmoid(nodule_pred)
-            prob_pred1 = torch.where(prob_pred1 >= 0.5, 1.0, 0)
+            # nodule_pred, gland_pred, _ = self.trfe.forward(image_a.to(self.device, dtype=torch.float32))
+            # prob_pred1 = torch.sigmoid(nodule_pred)
+            # prob_pred1 = torch.where(prob_pred1 >= 0.5, 1.0, 0)
 
             prob_pred = torch.sigmoid(auxiliary_256)
             prob_pred = torch.where(prob_pred >= 0.5, 1.0, 0)
-            prob_pred = prob_pred + prob_pred1
-            prob_pred = torch.where(prob_pred > 1, 1.0, prob_pred)
+
             prob_pred = F.interpolate(prob_pred, size=(h, w), mode='bilinear', align_corners=True)
             auxiliary_np = prob_pred.squeeze().detach().cpu().numpy() * 255
             auxiliary_np = auxiliary_np.astype(np.uint8)

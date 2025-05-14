@@ -9,7 +9,8 @@ import cv2
 import numpy as np
 import torch
 from segment_anything import sam_model_registry
-from utils.data_convert import getDatasets, find_bboxes
+from utils.box import find_bboxes
+from utils.data_convert import getDatasets
 from PIL import Image
 
 device = torch.device("cpu")
@@ -78,7 +79,7 @@ class SAMTarget(nn.Module):
 def get_argparser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--dataset_name", type=str, default='MICCAI', help="dataset name")
+    parser.add_argument("--dataset_name", type=str, default='Thyroid_tn3k', help="dataset name")
     parser.add_argument('--data_dir', type=str, default='./datasets/', help='data directory')
     parser.add_argument('--use_box', type=bool, default=True, help='is use box')
     return parser
@@ -92,27 +93,29 @@ def main():
         model_path = "./models_box/"
     checkpoint = f"{model_path}{opt.dataset_name}_sam_best.pth"
     if not os.path.exists(checkpoint):
-        checkpoint = './work_dir/SAM/sam_vit_b_01ec64.pth'
+        checkpoint = './work_dir/SAM/sam_best.pth'
     sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=checkpoint).to(device)
     medsam = MedSAM(sam.image_encoder, sam.mask_decoder, sam.prompt_encoder)
     medsam.eval()
 
     # print(medsam.mask_decoder)
-    target_layers = [medsam.image_encoder.neck[3]]
+    target_layers = [medsam]
 
-    img_name_list, lbl_name_list = getDatasets(opt.dataset_name, opt.data_dir, "val")
-    index = 1
+    img_name_list, lbl_name_list,_ = getDatasets(opt.dataset_name, opt.data_dir, "train")
+
+    index = 16
     image_path = img_name_list[index]
     mask_path = lbl_name_list[index]
-
+    print(mask_path)
     interaction_u2net_predict(medsam, mask_path, opt.use_box)
 
     img_np = io.imread(image_path)
-    H, W, _ = img_np.shape
-    net_input = get_img_1024_tensor(img_np)
+    H, W = img_np.shape
+
 
     canvas_img = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
+    net_input = get_img_1024_tensor(canvas_img)
     # 实例化cam，得到指定feature map的可视化数据
     cam = pytorch_grad_cam.GradCAMPlusPlus(model=medsam, target_layers=target_layers)
     grayscale_cam = cam(net_input, targets=[SAMTarget(mask_path)])

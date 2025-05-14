@@ -80,7 +80,8 @@ with open(bpat_unet_val_log, "r") as bapt_file:
 fig = plt.figure(figsize=(6, 6))
 i = 0
 
-
+my_list = [my_list[1], my_list[3],my_list[4]]
+row = 3
 for index, data in enumerate(my_list):
     print(data.__dict__)
 
@@ -95,7 +96,11 @@ for index, data in enumerate(my_list):
 
     i += col
 
-xticks_labels = ["origin", "mask", "BAPT", "trfeplus", "ours"]
+
+plt.rcParams['font.sans-serif'] = ['Microsoft YaHei']  # 使用微软雅黑
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
+xticks_labels = ["原图", "掩码", "BAPT", "trfeplus", "MaskSAM"]
 for index in range(len(xticks_labels)):
     plt.subplot(row, col, (row -1)*col + index + 1)
     plt.xlabel(xticks_labels[index], fontsize=10)
