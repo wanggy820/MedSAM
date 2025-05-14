@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from TRFE_Net.dataloaders import scui
 # Dataloaders includes
 from dataloaders import tn3k, tg3k, tatn
 from dataloaders import custom_transforms as trforms
@@ -50,7 +51,7 @@ def get_arguments():
     ## Model settings
     # unet, trfe, trfe1, trfe2, mtnet, segnet, deeplab-resnet50, fcn
     # TransUnet: ViT-B_16, ViT-B_32, ViT-L_16, ViT-L_32, ViT-H_14, R50-ViT-B_16, R50-ViT-L_16
-    parser.add_argument('-model_name', type=str, default='cpfnet')
+    parser.add_argument('-model_name', type=str, default='trfeplus')
     parser.add_argument('-criterion', type=str, default='Dice')
     parser.add_argument('-pretrain', type=str, default='None')  # THYROID
 
@@ -62,9 +63,9 @@ def get_arguments():
     parser.add_argument('--vit_patches_size', type=int, default=16, help='vit_patches_size, default is 16')
 
     ## Train settings
-    parser.add_argument('-dataset', type=str, default='TN3K')  # TN3K, TG3K, TATN
+    parser.add_argument('-dataset', type=str, default='SCUI')  # TN3K, TG3K, TATN
     parser.add_argument('-fold', type=str, default=0)
-    parser.add_argument('-batch_size', type=int, default=16)
+    parser.add_argument('-batch_size', type=int, default=80)
     parser.add_argument('-nepochs', type=int, default=100)
     parser.add_argument('-resume_epoch', type=int, default=0)
 
@@ -194,6 +195,9 @@ def main(args):
     elif args.dataset == 'TATN':
         train_data = tatn.TATN(mode='train', transform=composed_transforms_tr, fold=args.fold)
         val_data = tatn.TATN(mode='val', transform=composed_transforms_ts, fold=args.fold)
+    elif args.dataset == 'SCUI':
+        train_data = scui.SCUI(mode='train', transform=composed_transforms_tr)
+        val_data = scui.SCUI(mode='val', transform=composed_transforms_ts)
 
     trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=0, drop_last=True,
                              pin_memory=True)
@@ -323,7 +327,7 @@ def main(args):
             count = 0
             iou = 0
             net.eval()
-            for ii, (sample_batched) in enumerate(testloader):
+            for ii, (sample_batched, _) in enumerate(testloader):
                 inputs, labels = sample_batched['image'].to(device=device), sample_batched['label'].to(device=device)
                 with torch.no_grad():
                     if 'trfe' in args.model_name or args.model_name == 'mtnet':

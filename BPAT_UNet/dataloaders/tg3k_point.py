@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 
-def make_dataset(root, seed):
+def make_dataset(root, seed, name):
     imgs = []
     img_labels = {}
 
@@ -15,21 +15,22 @@ def make_dataset(root, seed):
 
     for i in seed:
         img_name = img_names[i]
-        img = os.path.join(root + 'thyroid-image/', img_name)
-        mask = os.path.join(root + 'thyroid-mask/', img_name)
-        imgs.append((img, mask, 0))
+        img = os.path.join(root + name+ '-image/', img_name)
+        mask = os.path.join(root + name+ '-mask/', img_name)
+        point = os.path.join(root + name + '-mask/', img_name)
+        imgs.append((img, mask, point))
     return imgs
 
 
-class TG3K(data.Dataset):
+class TG3K_point(data.Dataset):
     def __init__(self, mode, transform=None, return_size=False):
         self.mode = mode
         root = '../datasets/Thyroid_Dataset/tg3k/'
         trainval = json.load(open(root + 'tg3k-trainval.json', 'r'))
         if mode == 'train':
-            imgs = make_dataset(root, trainval['train'])
+            imgs = make_dataset(root, trainval['train'], 'thyroid')
         else:
-            imgs = make_dataset(root, trainval['val'])
+            imgs = make_dataset(root, trainval['val'], 'thyroid')
 
         self.imgs = imgs
         self.transform = transform
@@ -37,19 +38,24 @@ class TG3K(data.Dataset):
 
     def __getitem__(self, item):
         if True:
-            image_path, label_path, label = self.imgs[item]
+            image_path, label_path, point_path = self.imgs[item]
             assert os.path.exists(image_path), ('{} does not exist'.format(image_path))
             assert os.path.exists(label_path), ('{} does not exist'.format(label_path))
+            assert os.path.exists(point_path), ('{} does not exist'.format(point_path))
 
             image = Image.open(image_path).convert('RGB')
             label = np.array(Image.open(label_path).convert('L'))
             label = label / label.max()
             label = Image.fromarray(label.astype(np.uint8))
 
+            point = np.array(Image.open(point_path).convert('L'))
+            point = point / point.max()
+            point = Image.fromarray(point.astype(np.uint8))
+
             w, h = image.size
             size = (h, w)
             scale = np.sum(label) / (w * h)
-            sample = {'image': image, 'label': label}
+            sample = {'image': image, 'label': label, 'point': point}
 
             if self.transform:
                 sample = self.transform(sample)

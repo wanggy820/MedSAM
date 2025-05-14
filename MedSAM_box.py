@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.nn import functional as F
 
+from BPAT_UNet.our_model.BPATUNet_all import BPATUNet
 from BPAT_UNet.visualization.metrics import evaluate
 from TRFE_Net.model.trfeplus import TRFEPLUS
 from segment_anything.utils.transforms import ResizeLongestSide

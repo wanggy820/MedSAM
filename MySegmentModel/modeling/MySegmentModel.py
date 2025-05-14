@@ -75,7 +75,7 @@ class MySegmentModel(nn.Module):
         mask_features = mask_features.sigmoid()
         pre_mask = pre_mask.sigmoid()
 
-        low_res_pred = x * 0.1 + mask_features * 0.2 + pre_mask * 0.4 + (prompt_masks/255.0) * 0.3
+        low_res_pred = x * 0.1 + mask_features * 0.2 + pre_mask * 0.3 + (prompt_masks/255.0) * 0.5
         return x, mask_features, low_res_pred
 
 

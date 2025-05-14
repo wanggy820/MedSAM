@@ -242,6 +242,24 @@ def getDatasets(dataset_name, root_dir, data_type, fold=0):
 
         return getDatasets("Thyroid_tn3k", root_dir, data_type, fold)
 
+    if dataset_name == "Thyroid_scui":
+        data_dir = root_dir + "TN_SCUI/"
+        image_list = sorted(glob.glob(data_dir + "image/*"))
+        mask_list = sorted(glob.glob(data_dir + "mask/*"))
+
+        length = len(image_list)
+        index = length*4//5
+        if data_type == "train":
+            image_list = image_list[:index]
+            mask_list = mask_list[:index]
+        else:
+            image_list = image_list[-(length - index):]
+            mask_list = mask_list[-(length - index):]
+
+        auxiliary_list = mask_list
+        return image_list, mask_list, auxiliary_list
+
+
     if dataset_name == "DRIVE":
         if data_type == "train":
             data_dir = root_dir + "DRIVE/training/"

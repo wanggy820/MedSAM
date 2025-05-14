@@ -28,7 +28,7 @@ class TG3K(data.Dataset):
         trainval = json.load(open(root + 'tg3k-trainval.json', 'r')) 
         if mode == 'train':
             imgs = make_dataset(root, trainval['train'])
-        elif mode == 'val':
+        else:
             imgs = make_dataset(root, trainval['val'])
 
         self.imgs = imgs

@@ -43,13 +43,13 @@ else:
 def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('-gpu', type=str, default='0')
-    parser.add_argument('-model_name', type=str,
-                        default='deeplab-resnet50')  # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
+    # unet, mtnet, segnet, deeplab-resnet50, fcn, trfe, trfe1, trfe2
+    parser.add_argument('-model_name', type=str,default='deeplab-resnet50')
     parser.add_argument('-num_classes', type=int, default=1)
     parser.add_argument('-input_size', type=int, default=224)
     parser.add_argument('-output_stride', type=int, default=16)
     parser.add_argument('-save_dir', type=str, default='./results')
-    parser.add_argument('-test_dataset', type=str, default='TN3K')
+    parser.add_argument('-test_dataset', type=str, default='TG3K')
     parser.add_argument('-test_fold', type=str, default='test')
     parser.add_argument('-fold', type=int, default=0)
     ## for transunet
@@ -114,6 +114,8 @@ def main(args):
 
     if args.test_dataset == 'TN3K':
         test_data = tn3k.TN3K(mode='test', transform=composed_transforms_ts, return_size=True, fold=args.fold)
+    elif args.test_dataset == 'TG3K':
+        test_data = tg3k.TG3K(mode='test', transform=composed_transforms_ts, return_size=True)
     elif args.test_dataset == 'DDTI':
         test_data = ddti.DDTI(transform=composed_transforms_ts, return_size=True)
 
@@ -135,7 +137,7 @@ def main(args):
         interaction_total_dice = 0
         interaction_total_iou = 0
         index = 0
-        for sample_batched in tqdm(testloader):
+        for (sample_batched,_) in tqdm(testloader):
             inputs, labels, label_name, size = sample_batched['image'], sample_batched['label'], sample_batched.get(
                 'label_name'), sample_batched['size']
             logging.info("image_path:{}".format(label_name))
@@ -230,3 +232,17 @@ def main(args):
 if __name__ == '__main__':
     args = get_arguments()
     main(args)
+
+# /*
+#
+# cpfnet
+# Test Result:
+# recall: 0.6837, specificity: 0.9926, precision: 0.8772, F1_score:0.7307, acc: 0.9764, iou: 0.6265, mae: 0.0239,
+# dice: 0.7307, hd: 24.8862, auc: 0.8381, DSC: 0.7305
+#
+
+
+
+
+
+# */
